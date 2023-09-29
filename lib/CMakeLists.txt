@@ -1,1 +1,1 @@
-add_subdirectory(List)
+add_subdirectory(DataStructures)
