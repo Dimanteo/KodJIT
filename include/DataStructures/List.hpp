@@ -10,188 +10,264 @@ namespace koda {
 
 // Base node of intrusive linked list
 //
-template <class T>
-class IntrusiveListNode {
+template <class Derived, class Container> class IntrusiveListNode {
+  friend Container;
+
 public:
-  using NodePtr = T *;
-  using Node = T;
+  using Node = Derived;
 
-  constexpr static NodePtr NIL_NODE() { return nullptr; };
+  constexpr static Node *NIL_NODE() { return nullptr; };
 
-  static bool isNIL(NodePtr node) { return node == NIL_NODE(); }
+  static bool isNIL(const Node *node) { return node == NIL_NODE(); }
+  static bool isNIL(const Node &node) { return isNIL(&node); }
 
 private:
-  NodePtr m_prev = nullptr;
-  NodePtr m_next = nullptr;
+  Node *m_prev = nullptr;
+  Node *m_next = nullptr;
+  Container *m_parent = nullptr;
+
+  void setNext(Node &next) { setNext(&next); }
+
+  void setPrev(Node &prev) { setPrev(&prev); }
+
+  void setNext(Node *next) { m_next = next; }
+
+  void setPrev(Node *prev) { m_prev = prev; }
+
+  void setParent(Container &parent) { setParent(&parent); }
+
+  void setParent(Container *parent) { m_parent = parent; }
 
 public:
   virtual ~IntrusiveListNode() = default;
 
-  void setNext(NodePtr next) { m_next = next; }
+  IntrusiveListNode() = default;
 
-  void setPrev(NodePtr prev) { m_prev = prev; }
+  Derived *getNext() const { return static_cast<Derived *>(m_next); }
 
-  NodePtr getNext() const {
-    return static_cast<NodePtr>(m_next);
-  }
+  Derived *getPrev() const { return static_cast<Derived *>(m_prev); }
 
-  NodePtr getPrev() const {
-    return static_cast<NodePtr>(m_prev);
-  }
+  Container *getParent() const { return m_parent; }
 
-  bool isLast() const { return isNIL(m_next); }
+  bool hasNext() const { return !isNIL(m_next); }
 
-  bool isFirst() const { return isNIL(m_prev); }
+  bool hasPrev() const { return !isNIL(m_prev); }
+
+  bool isInContainer() const { return m_parent != nullptr; }
 };
 
-// Container for intrusive list nodes. Node must be derived from IntrusiveNode.
+// Container for intrusive list nodes. InNode must be derived from IntrusiveListNode.
 //
-template <class T> class IntrusiveList final {
-
-  static_assert(std::is_base_of<IntrusiveListNode<T>, T>::value && "Node must be derived from IntrusiveNode");
-
+template <class InNode> class IntrusiveList final {
 public:
-  using Node = T;
-  using NodePtr = T *;
+  using NodeBase = IntrusiveListNode<InNode, IntrusiveList>;
+
+  static_assert(std::is_base_of<NodeBase, InNode>::value && "Node must be derived from IntrusiveNode");
 
 private:
-  NodePtr m_head = nullptr;
+  InNode *m_head = nullptr;
 
-  NodePtr m_tail = nullptr;
+  InNode *m_tail = nullptr;
+
+  void setHead(InNode &node) { m_head = &node; }
+
+  void setHead(InNode *node) { m_head = node; }
+
+  void setTail(InNode &node) { m_tail = &node; }
+
+  void setTail(InNode *node) { m_tail = node; }
 
 public:
-  void insertBack(NodePtr node) {
-    if (empty()) {
-      assert(Node::isNIL(m_head) && "invalid value for head in empty list");
-      assert(Node::isNIL(m_tail) && "invalid value for tail in empty list");
+  void insertTail(InNode *node) {
+    assert(!InNode::isNIL(node) && "Invalid node passed as argument");
+    insertTail(*node);
+  }
 
-      m_head = node;
-      m_tail = node;
+  void insertTail(InNode &node) {
+    assert(!node.isInContainer() && "Can't insert node from different list");
+
+    node.setParent(this);
+
+    if (empty()) {
+      assert(InNode::isNIL(m_head) && "invalid value for head in empty list");
+      assert(InNode::isNIL(m_tail) && "invalid value for tail in empty list");
+
+      setHead(node);
+      setTail(node);
+      node.setNext(InNode::NIL_NODE());
+      node.setPrev(InNode::NIL_NODE());
       return;
     }
-    assert(m_tail->isLast() && "tail must be last in list");
+    assert(!m_tail->hasNext() && "tail must be last in list");
 
     m_tail->setNext(node);
-    node->setPrev(node);
-    m_tail = node;
+    node.setPrev(m_tail);
+    setTail(node);
   }
 
-  void insertFront(NodePtr node) {
-    assert(!Node::isNIL(node) && "Invalid node passed as argument");
-    if (empty()) {
-      assert(Node::isNIL(m_head) && "invalid value for head in empty list");
-      assert(Node::isNIL(m_tail) && "invalid value for tail in empty list");
+  void insertHead(InNode *node) {
+    assert(!InNode::isNIL(node) && "Invalid node passed as argument");
+    insertHead(*node);
+  }
 
-      m_head = node;
-      m_tail = node;
+  void insertHead(InNode &node) {
+    assert(!node.isInContainer() && "Can't insert node from different list");
+
+    node.setParent(this);
+
+    if (empty()) {
+      assert(InNode::isNIL(m_head) && "invalid value for head in empty list");
+      assert(InNode::isNIL(m_tail) && "invalid value for tail in empty list");
+
+      setHead(node);
+      setTail(node);
+      node.setNext(InNode::NIL_NODE());
+      node.setPrev(InNode::NIL_NODE());
       return;
     }
-    assert(m_head->isFirst() && "head must be first in list");
+    assert(!m_head->hasPrev() && "head must be first in list");
 
     m_head->setPrev(node);
-    node->setNext(m_head);
-    m_head = node;
+    node.setNext(m_head);
+    setHead(node);
   }
 
-  void insertAfter(NodePtr insertPoint, NodePtr node) {
-    assert(!Node::isNIL(insertPoint) && "Invalid insertion point");
-    assert(!Node::isNIL(node) && "Invalid node passed as argument");
+  void insertAfter(InNode *insertPoint, InNode *node) {
+    assert(!InNode::isNIL(insertPoint) && "Invalid insertion point");
+    assert(!InNode::isNIL(node) && "Invalid node passed as argument");
+    insertAfter(*insertPoint, *node);
+  }
 
-    if (insertPoint->isLast()) {
-      insertBack(node);
+  void insertAfter(InNode &insertPoint, InNode &node) {
+    if (!insertPoint.hasNext()) {
+      insertTail(node);
+      return;
     }
 
-    NodePtr next = insertPoint->getNext();
+    assert(!node.isInContainer() && "Can't insert node from different list");
+
+    node.setParent(this);
+
+    InNode *next = insertPoint.getNext();
     next->setPrev(node);
-    insertPoint->setNext(node);
-    node->setNext(next);
-    node->setPrev(insertPoint);
+    insertPoint.setNext(node);
+    node.setNext(next);
+    node.setPrev(insertPoint);
   }
 
-  void insertBefore(NodePtr insertPoint, NodePtr node) {
-    assert(!Node::isNIL(insertPoint) && "Invalid insertion point");
-    assert(!Node::isNIL(node) && "Invalid node passed as argument");
+  void insertBefore(InNode *insertPoint, InNode *node) {
+    assert(!InNode::isNIL(insertPoint) && "Invalid insertion point");
+    assert(!InNode::isNIL(node) && "Invalid node passed as argument");
+    insertBefore(*insertPoint, *node);
+  }
 
-    if (insertPoint->isFirst()) {
-      insertFront(node);
+  void insertBefore(InNode &insertPoint, InNode &node) {
+    if (!insertPoint.hasPrev()) {
+      insertHead(node);
+      return;
     }
 
-    NodePtr prev = insertPoint->getPrev();
-    insertPoint->setPrev(node);
+    assert(!node.isInContainer() && "Can't insert node from different list");
+
+    node.setParent(this);
+
+    InNode *prev = insertPoint.getPrev();
+    insertPoint.setPrev(node);
     prev->setNext(node);
-    node->setNext(insertPoint);
-    node->setPrev(prev);
+    node.setNext(insertPoint);
+    node.setPrev(prev);
   }
 
   void removeHead() {
     if (empty()) {
       return;
     }
-    if (m_head->isLast()) {
-      m_head = Node::NIL_NODE();
-      m_tail = Node::NIL_NODE();
+
+    m_head->setParent(nullptr);
+
+    if (!m_head->hasNext()) {
+      m_head->setPrev(InNode::NIL_NODE());
+      m_head->setNext(InNode::NIL_NODE());
+      setHead(InNode::NIL_NODE());
+      setTail(InNode::NIL_NODE());
       return;
     }
 
-    NodePtr new_head = m_head->getNext();
-    m_head->setNext(Node::NIL_NODE());
-    new_head->setPrev(Node::NIL_NODE());
-    m_head = new_head;
+    InNode *new_head = m_head->getNext();
+    m_head->setPrev(InNode::NIL_NODE());
+    m_head->setNext(InNode::NIL_NODE());
+    new_head->setPrev(InNode::NIL_NODE());
+    setHead(new_head);
   }
 
   void removeTail() {
     if (empty()) {
       return;
     }
-    if (m_head->isFirst()) {
-      m_head = Node::NIL_NODE();
-      m_tail = Node::NIL_NODE();
+
+    m_tail->setParent(nullptr);
+
+    if (!m_tail->hasPrev()) {
+      m_tail->setPrev(InNode::NIL_NODE());
+      m_tail->setNext(InNode::NIL_NODE());
+      setHead(InNode::NIL_NODE());
+      setTail(InNode::NIL_NODE());
       return;
     }
 
-    NodePtr new_tail = m_head->getPrev();
-    m_tail->setPrev(Node::NIL_NODE());
-    new_tail->setNext(Node::NIL_NODE());
-    m_tail = new_tail;
+    InNode *new_tail = m_tail->getPrev();
+    m_tail->setPrev(InNode::NIL_NODE());
+    m_tail->setNext(InNode::NIL_NODE());
+    new_tail->setNext(InNode::NIL_NODE());
+    setTail(new_tail);
   }
 
   // Remove \p node from list.
-  // \returns node immediately after removed one or NIL if node is last.
-  NodePtr remove(NodePtr node) {
-    assert(!Node::isNIL(node) && "Invalid node passed as argument");
-    if (node->isFirst()) {
+  // \returns next node after removed one or NIL if node is last.
+  InNode *remove(InNode *node) { return remove(*node); }
+
+  // Remove \p node from list.
+  // \returns next node after removed one or NIL if node is last.
+  InNode *remove(InNode &node) {
+    assert(!InNode::isNIL(node) && "Invalid node passed as argument");
+    assert(node.getParent() == this && "Can't remove node from different container");
+
+    node.setParent(nullptr);
+
+    if (!node.hasPrev()) {
       removeHead();
       return m_head;
     }
-    if (node->isLast()) {
+
+    if (!node.hasNext()) {
       removeTail();
       return m_tail;
     }
 
-    auto next = node->getNext();
-    auto prev = node->getPrev();
+    auto next = node.getNext();
+    auto prev = node.getPrev();
     next->setPrev(prev);
     prev->setNext(next);
 
-    node->setPrev(Node::NIL_NODE());
-    node->setNext(Node::NIL_NODE());
+    node.setPrev(InNode::NIL_NODE());
+    node.setNext(InNode::NIL_NODE());
 
     return next;
   }
 
-  void foreach (std::function<void(const Node &node)> action) {
-    NodePtr curr_node = getHead();
-    while (!Node::isNIL(curr_node)) {
+  void foreach (std::function<void(const InNode &node)> action) {
+    InNode *curr_node = getHead();
+    while (!InNode::isNIL(curr_node)) {
       action(*curr_node);
       curr_node = curr_node->getNext();
     }
   }
 
-  NodePtr getHead() const { return m_head; }
+  InNode *getHead() const { return m_head; }
 
-  NodePtr getTail() const { return m_tail; }
+  InNode *getTail() const { return m_tail; }
 
-  bool empty() const { return Node::isNIL(m_head); }
+  bool empty() const { return InNode::isNIL(m_head); }
 };
 
 } // namespace koda
