@@ -62,7 +62,7 @@ template <class InNode> class IntrusiveList final {
 public:
   using NodeBase = IntrusiveListNode<InNode, IntrusiveList>;
 
-  static_assert(std::is_base_of<NodeBase, InNode>::value && "Node must be derived from IntrusiveNode");
+  static_assert(std::is_base_of<NodeBase, InNode>::value);
 
 private:
   InNode *m_head = nullptr;
