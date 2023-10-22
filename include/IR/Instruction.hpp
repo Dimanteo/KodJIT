@@ -14,7 +14,7 @@ class BasicBlock;
 // Base class for IR instruction
 //
 class Instruction : public IntrusiveListNode<Instruction, IntrusiveList<Instruction>>,
-                    public IInstructionOperand {
+                    public IOperand {
   instid_t m_id;
 
   InstOpcode m_opcode = INST_INVALID;
@@ -36,9 +36,11 @@ public:
 
   void setBB(BasicBlock *bb) { m_bblock = bb; }
 
-  void addUser(Instruction *user) override { m_users.push_back(user); }
+  void addUser(Instruction *user) { m_users.push_back(user); }
 
-  Instruction *getInstruction() override { return this; }
+  bool isTrackingUsers() const override { return true; }
+
+  bool isTerminator() const { return isTerminatorOpcode(m_opcode); }
 };
 
 class BranchInstruction : public Instruction {

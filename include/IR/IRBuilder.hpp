@@ -1,8 +1,12 @@
 #pragma once
 
+#include "IR/IROperand.hpp"
 #include <IR/Instruction.hpp>
+#include <IR/ProgramGraph.hpp>
 
+#include <initializer_list>
 #include <stdexcept>
+#include <vector>
 
 namespace koda {
 
@@ -10,7 +14,9 @@ class ProgramGraph;
 class BasicBlock;
 
 struct IROperandError : std::runtime_error {
-  IROperandError(IOperand *operand, OperandType expected_type);
+  IROperandError(const char *msg) : std::runtime_error(msg) {}
+  IROperandError(const std::string msg) : std::runtime_error(msg) {}
+  static const char *makeErrorStr(std::initializer_list<IOperand> ops, OperandType expected);
 };
 
 class IRBuilder final {
@@ -24,13 +30,25 @@ class IRBuilder final {
                                                      IOperand *rhs);
 
 public:
-  IRBuilder() = default;
+  IRBuilder(ProgramGraph &graph) : m_graph(&graph) {}
 
   BasicBlock *createBasicBlock();
+
+  void setEntryPoint(BasicBlock *bb) { m_graph->setEntry(bb); }
 
   void setInsertPoint(BasicBlock *bb) { m_insert_bb = bb; }
 
   BasicBlock *getInsertPoint() const { return m_insert_bb; }
+
+  // Appends parameter to the end of parameters list
+  ProgParam *appendProgParam(OperandType type);
+
+  // Remove last parameter from parameters list
+  void popProgParam();
+
+  ProgParam *getProgParam(size_t idx) const;
+
+  IntConstOperand *createIntConstant(uint64_t value);
 
   BranchInstruction *createBranch(BasicBlock *target);
 

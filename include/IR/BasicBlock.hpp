@@ -42,11 +42,19 @@ public:
   Instruction *removeInstruction(Instruction *instruction);
 
   // Returns unconditional successor
-  BasicBlock *getUncondSuccessor() const { return getSuccessor(TRUE_IDX); }
+  BasicBlock *getUncondSuccessor() const { return getSuccessor(UNCOND_IDX); }
 
   BasicBlock *getFalseSuccessor() const { return getSuccessor(FALSE_IDX); }
 
   BasicBlock *getTrueSuccessor() const { return getSuccessor(TRUE_IDX); }
+
+  void setUncondSuccessor(BasicBlock *bb) { m_successors[UNCOND_IDX] = bb; }
+
+  void setFalseSuccessor(BasicBlock *bb) { m_successors[FALSE_IDX] = bb; }
+
+  void setTrueSuccessor(BasicBlock *bb) { m_successors[TRUE_IDX] = bb; }
+
+  bool hasTerminator() const { return m_instructions.getTail()->isTerminator(); }
 
   using succ_iterator = SuccessorsArray::iterator;
 
@@ -55,6 +63,8 @@ public:
   succ_iterator succ_end() { return m_successors.end(); }
 
   OperandType getType() const override { return OperandType::LABEL; }
+
+  bool isTrackingUsers() const override { return false; }
 };
 
 } // namespace koda

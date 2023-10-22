@@ -15,7 +15,7 @@ constexpr const char *OperandTypeToStr[] = {"Invalid", "None", "Bool", "Int", "F
 
 struct IOperand {
   virtual OperandType getType() const = 0;
-  virtual bool isTrackingUsers() const { return false; };
+  virtual bool isTrackingUsers() const = 0;
   template <class T> T *cast_to() {
     static_assert(std::is_base_of<IOperand, T>::value);
     // Not using dynamic cast here to avoid runtime checks.
@@ -23,14 +23,29 @@ struct IOperand {
   }
 };
 
-struct IInstructionOperand : public IOperand {
-  virtual Instruction *getInstruction() = 0;
-  bool isTrackingUsers() const override { return true; }
-  virtual void addUser(Instruction *);
-};
-
 struct IPhiOperand : public IOperand {
   virtual BasicBlock *getSrcBB() const = 0;
+};
+
+class ProgParam : public IOperand {
+  OperandType m_type;
+
+public:
+  ProgParam(OperandType type) : m_type(type) {}
+  virtual ~ProgParam() = default;
+  OperandType getType() const override { return m_type; }
+  bool isTrackingUsers() const override { return false; }
+};
+
+struct IntConstOperand : public IOperand {
+  uint64_t m_value;
+
+public:
+  IntConstOperand(uint64_t val) : m_value(val) {}
+  virtual ~IntConstOperand() = default;
+  OperandType getType() const override { return OperandType::INTEGER; }
+  uint64_t getValue() const { return m_value; }
+  bool isTrackingUsers() const override { return false; }
 };
 
 }; // namespace koda

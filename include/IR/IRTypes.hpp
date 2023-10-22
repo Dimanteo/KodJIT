@@ -20,6 +20,10 @@ enum InstOpcode : uint8_t {
   INST_PHI
 };
 
+inline constexpr bool isTerminatorOpcode(InstOpcode opc) {
+  return opc == INST_BRANCH || opc == INST_COND_BR;
+}
+
 enum CmpFlag {
   CMP_INVALID,
   CMP_EQ,
