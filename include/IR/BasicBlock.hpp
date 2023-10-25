@@ -6,6 +6,8 @@
 #include <IR/Instruction.hpp>
 
 #include <array>
+#include <functional>
+#include <iostream>
 #include <vector>
 
 namespace koda {
@@ -30,14 +32,20 @@ private:
 
   ProgramGraph *m_graph = nullptr;
 
-  enum SuccessorIdx { FALSE_IDX = 0, UNCOND_IDX = 0, TRUE_IDX = 1 };
+  enum SuccessorIdx : unsigned { FALSE_IDX = 0, UNCOND_IDX = 0, TRUE_IDX = 1 };
 
   BasicBlock *getSuccessor(SuccessorIdx idx) const { return m_successors[idx]; }
+
+  void setFalseSuccessor(BasicBlock *bb) { m_successors[FALSE_IDX] = bb; }
+
+  void setTrueSuccessor(BasicBlock *bb) { m_successors[TRUE_IDX] = bb; }
 
 public:
   BasicBlock(bbid_t id, ProgramGraph &graph) : m_id(id), m_graph(&graph) {}
 
-  void addInstruction(Instruction *instruction);
+  bbid_t getID() const { return m_id; }
+
+  void addInstruction(Instruction *instruction) { m_instructions.insertTail(instruction); }
 
   Instruction *removeInstruction(Instruction *instruction);
 
@@ -50,21 +58,17 @@ public:
 
   void setUncondSuccessor(BasicBlock *bb) { m_successors[UNCOND_IDX] = bb; }
 
-  void setFalseSuccessor(BasicBlock *bb) { m_successors[FALSE_IDX] = bb; }
+  void setCondSuccessors(BasicBlock *false_bb, BasicBlock *true_bb);
 
-  void setTrueSuccessor(BasicBlock *bb) { m_successors[TRUE_IDX] = bb; }
+  bool hasSuccessor() const;
 
-  bool hasTerminator() const { return m_instructions.getTail()->isTerminator(); }
-
-  using succ_iterator = SuccessorsArray::iterator;
-
-  succ_iterator succ_begin() { return m_successors.begin(); }
-
-  succ_iterator succ_end() { return m_successors.end(); }
+  void addPredecessor(BasicBlock *pred) { m_predecessors.push_back(pred); }
 
   OperandType getType() const override { return OperandType::LABEL; }
 
   bool isTrackingUsers() const override { return false; }
+
+  void for_each_succ(std::function<void(BasicBlock &)> funct) const;
 };
 
 } // namespace koda

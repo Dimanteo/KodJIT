@@ -4,13 +4,19 @@
 #include <IR/BasicBlock.hpp>
 #include <IR/Instruction.hpp>
 
+#include <functional>
 #include <memory>
 #include <vector>
 
 namespace koda {
 
 class ProgramGraph final {
-  std::vector<BasicBlock> m_bb_arena{};
+public:
+  using BasicBlockArena = std::vector<std::unique_ptr<BasicBlock>>;
+
+private:
+  BasicBlockArena m_bb_arena{};
+
   std::vector<std::unique_ptr<Instruction>> m_inst_arena{};
 
   std::vector<ProgParam> m_params{};
@@ -50,6 +56,13 @@ public:
   IntConstOperand *createIntConstant(uint64_t value) {
     m_consts.emplace_back(value);
     return &m_consts.back();
+  }
+
+  // TODO: iterators
+  void for_each_block(std::function<void(const BasicBlock &)> funct) const {
+    for (const auto &bb_ptr : m_bb_arena) {
+      funct(*bb_ptr.get());
+    }
   }
 };
 

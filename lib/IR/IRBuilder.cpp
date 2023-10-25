@@ -3,7 +3,6 @@
 #include <IR/ProgramGraph.hpp>
 
 #include <algorithm>
-#include <iostream>
 #include <stdexcept>
 #include <string>
 
@@ -53,16 +52,22 @@ ArithmeticInstruction *IRBuilder::createArithmeticInstruction(InstOpcode opcode,
   }
 
   auto inst = m_graph->createInstruction<ArithmeticInstruction>(opcode, type, lhs, rhs);
+  addInstruction(inst);
   connectUsers(inst, {lhs, rhs});
   return inst;
 }
 
 BranchInstruction *IRBuilder::createBranch(BasicBlock *target) {
   auto br_inst = m_graph->createInstruction<BranchInstruction>(target);
+  addInstruction(br_inst);
+
   auto curr_bb = getInsertPoint();
-  if (!curr_bb->hasTerminator()) {
+  if (!curr_bb->hasSuccessor()) {
+    std::cout << "Connect " << curr_bb << " -> " << target << "\n";
     curr_bb->setUncondSuccessor(target);
+    target->addPredecessor(curr_bb);
   }
+
   return br_inst;
 }
 
@@ -75,16 +80,17 @@ ConditionalBranchInstruction *IRBuilder::createConditionalBranch(CmpFlag cmp_fla
 
   auto inst =
       m_graph->createInstruction<ConditionalBranchInstruction>(cmp_flag, false_block, true_block, lhs, rhs);
-
+  addInstruction(inst);
   connectUsers(inst, {lhs, rhs});
 
   auto curr_bb =  getInsertPoint();
 
   // Update successors only if this is first branch in bb. Otherwise current instruction is unreachable.
   //
-  if (!curr_bb->hasTerminator()) {
-    curr_bb->setFalseSuccessor(false_block);
-    curr_bb->setTrueSuccessor(true_block);
+  if (!curr_bb->hasSuccessor()) {
+    curr_bb->setCondSuccessors(false_block, true_block);
+    false_block->addPredecessor(curr_bb);
+    true_block->addPredecessor(curr_bb);
   }
 
   return inst;

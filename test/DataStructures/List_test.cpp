@@ -1,7 +1,7 @@
 #include <DataStructures/List.hpp>
 
-#include <gtest/gtest.h>
 #include <algorithm>
+#include <gtest/gtest.h>
 
 namespace koda {
 
@@ -53,7 +53,7 @@ TEST(ListTests, listinsertTail) {
   ASSERT_EQ(&storage[0], list.getHead());
 
   size_t list_size = 0;
-  list.foreach ([&list_size](const TestNode &node) { list_size++; });
+  list.foreach ([&list_size]([[maybe_unused]] const TestNode &node) { list_size++; });
 
   ASSERT_EQ(list_size, storage.size());
 }
@@ -90,7 +90,7 @@ TEST(ListTests, listinsertHead) {
   ASSERT_EQ(&storage[0], list.getTail());
 
   size_t list_size = 0;
-  list.foreach ([&list_size](const TestNode &node) { list_size++; });
+  list.foreach ([&list_size]([[maybe_unused]] const TestNode &node) { list_size++; });
 
   ASSERT_EQ(list_size, storage.size());
 }
@@ -158,13 +158,13 @@ TEST(ListTests, insertBefore) {
 TEST(ListTests, remove) {
   std::vector<TestNode> storage = makeNodes(3);
   IntrusiveList<TestNode> list;
-  std::for_each(storage.begin(), storage.end(), [&list](TestNode &node){ list.insertTail(node); });
+  std::for_each(storage.begin(), storage.end(), [&list](TestNode &node) { list.insertTail(node); });
   TestNode *removed_node = list.getHead()->getNext();
   list.remove(removed_node);
   ASSERT_FALSE(removed_node->isInContainer());
   ASSERT_EQ(list.getHead()->getNext(), list.getTail());
   ASSERT_EQ(list.getTail()->getPrev(), list.getHead());
-  
+
   // Covers removeTail()
   list.remove(list.getTail());
   ASSERT_EQ(list.getHead(), list.getTail());

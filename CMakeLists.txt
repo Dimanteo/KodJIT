@@ -14,7 +14,7 @@ enable_testing()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(SANITIZERS
+set(CXX_SANITIZERS
     -fsanitize=address
     -fsanitize=alignment
     -fsanitize=bool
@@ -36,9 +36,12 @@ set(SANITIZERS
     -fsanitize=vptr
     -fsized-deallocation)
 
-set(CMAKE_CXX_FLAGS "-Wall")
-set(CMAKE_CXX_FLAGS_DEBUG "-g ${CXX_SANITIZERS}")
+set(CMAKE_CXX_FLAGS "-Wall -Wextra")
+set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
+
+add_compile_options(${CXX_SANITIZERS})
+add_link_options(${CXX_SANITIZERS})
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
 

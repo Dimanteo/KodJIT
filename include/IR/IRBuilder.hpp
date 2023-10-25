@@ -29,6 +29,8 @@ class IRBuilder final {
   ArithmeticInstruction *createArithmeticInstruction(InstOpcode opcode, OperandType type, IOperand *lhs,
                                                      IOperand *rhs);
 
+  void addInstruction(Instruction *inst) { m_insert_bb->addInstruction(inst); }
+
 public:
   IRBuilder(ProgramGraph &graph) : m_graph(&graph) {}
 

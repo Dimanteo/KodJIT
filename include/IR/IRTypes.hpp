@@ -1,12 +1,13 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <stdint.h>
 
 namespace koda {
 
-using bbid_t = unsigned long long;
-using instid_t = unsigned long long;
+using bbid_t = size_t;
+using instid_t = size_t;
 
 enum InstOpcode : uint8_t {
   INST_INVALID,
