@@ -10,7 +10,7 @@ using bbid_t = size_t;
 using instid_t = size_t;
 
 enum InstOpcode : uint8_t {
-  INST_INVALID,
+  INST_INVALID = 0,
   INST_ADD,
   INST_SUB,
   INST_MUL,
@@ -28,13 +28,23 @@ inline constexpr bool isTerminatorOpcode(InstOpcode opc) {
 }
 
 enum CmpFlag {
-  CMP_INVALID,
+  CMP_INVALID = 0,
   CMP_EQ,
   CMP_NE,
   CMP_L,
   CMP_LE,
   CMP_G,
   CMP_GE,
+};
+
+constexpr const char *FlagToStr[] = {
+  "NIL",
+  "eq",
+  "ne",
+  "lt",
+  "le",
+  "gt",
+  "ge",
 };
 
 } // namespace koda

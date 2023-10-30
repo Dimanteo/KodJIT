@@ -5,6 +5,7 @@
 #include <IR/IRTypes.hpp>
 
 #include <limits>
+#include <ostream>
 #include <stddef.h>
 #include <unordered_map>
 #include <vector>
@@ -25,12 +26,14 @@ class Instruction : public IntrusiveListNode<Instruction, IntrusiveList<Instruct
 protected:
   BasicBlock *m_bblock = nullptr;
 
+  virtual void dump_(std::ostream &os) { (void)os; };
+
 public:
   virtual ~Instruction() = default;
 
   Instruction(instid_t id, InstOpcode opc) : m_id(id), m_opcode(opc) {}
 
-  instid_t get_id() const { return m_id; }
+  instid_t getID() const { return m_id; }
 
   InstOpcode getOpcode() const { return m_opcode; };
 
@@ -41,6 +44,11 @@ public:
   void addUser(Instruction *user) { m_users.push_back(user); }
 
   bool isTerminator() const { return isTerminatorOpcode(m_opcode); }
+
+  void dump(std::ostream &os) {
+    os << "i" << getID() << ": ";
+    dump_(os);
+  }
 };
 
 struct BranchInstruction : public Instruction {
@@ -49,20 +57,23 @@ struct BranchInstruction : public Instruction {
   BasicBlock *getTarget() const;
 
   OperandType getType() const override { return OperandType::NONE; }
+
+private:
+  void dump_(std::ostream &os) override;
 };
 
 class BinaryOpInstructionBase : public Instruction {
   enum SIDE_IDX : unsigned { LHS = 0, RHS = 1 };
 
-  std::array<IOperand *, 2> m_inputs{};
+  std::array<Instruction *, 2> m_inputs{};
 
 public:
-  BinaryOpInstructionBase(instid_t id, InstOpcode opc, IOperand *lhs, IOperand *rhs)
+  BinaryOpInstructionBase(instid_t id, InstOpcode opc, Instruction *lhs, Instruction *rhs)
       : Instruction(id, opc), m_inputs{lhs, rhs} {}
 
-  IOperand *getLhs() const { return m_inputs[LHS]; }
+  Instruction *getLhs() const { return m_inputs[LHS]; }
 
-  IOperand *getRhs() const { return m_inputs[RHS]; }
+  Instruction *getRhs() const { return m_inputs[RHS]; }
 };
 
 class ConditionalBranchInstruction : public BinaryOpInstructionBase {
@@ -81,16 +92,22 @@ public:
   BasicBlock *getTrueBlock() const;
 
   OperandType getType() const override { return OperandType::NONE; }
+
+private:
+  void dump_(std::ostream &os) override;
 };
 
 class ArithmeticInstruction : public BinaryOpInstructionBase {
   OperandType m_type;
 
 public:
-  ArithmeticInstruction(instid_t id, InstOpcode opc, OperandType type, IOperand *lhs, IOperand *rhs)
+  ArithmeticInstruction(instid_t id, InstOpcode opc, OperandType type, Instruction *lhs, Instruction *rhs)
       : BinaryOpInstructionBase(id, opc, lhs, rhs), m_type(type) {}
 
   OperandType getType() const override { return m_type; }
+
+private:
+  void dump_(std::ostream &os) override;
 };
 
 class PhiInstruction : public Instruction {
@@ -99,12 +116,14 @@ class PhiInstruction : public Instruction {
   std::vector<Instruction *> m_values;
 
 public:
-  PhiInstruction(instid_t id, OperandType type)
-      : Instruction(id, INST_PHI), m_type(type) {}
+  PhiInstruction(instid_t id, OperandType type) : Instruction(id, INST_PHI), m_type(type) {}
 
   void addOption(BasicBlock *incoming_bb, Instruction *value);
 
   OperandType getType() const override { return m_type; }
+
+private:
+  void dump_(std::ostream &os) override;
 };
 
 class LoadParam : public Instruction {
@@ -115,9 +134,14 @@ public:
   LoadParam(instid_t id, OperandType type, size_t index)
       : Instruction(id, INST_PARAM), m_type(type), m_index(index) {}
 
+  virtual ~LoadParam() = default;
+
   OperandType getType() const override { return m_type; }
 
   size_t getIndex() const { return m_index; }
+
+private:
+  void dump_(std::ostream &os) override { os << OperandTypeToStr[getType()] << " arg " << m_index; }
 };
 
 template <typename ValueTy> class LoadConstant : public Instruction {
@@ -128,8 +152,14 @@ public:
   LoadConstant(instid_t id, OperandType type, ValueTy value)
       : Instruction(id, INST_CONST), m_value(value), m_type(type) {}
 
+  virtual ~LoadConstant() = default;
+
   OperandType getType() const override { return m_type; }
+
   ValueTy getValue() const { return m_value; }
+
+private:
+  void dump_(std::ostream &os) override { os << OperandTypeToStr[m_type] << " " << m_value; }
 };
 
 }; // namespace koda

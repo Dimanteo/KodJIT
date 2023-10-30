@@ -15,6 +15,8 @@ public:
   IRPrinter(std::ostream &out_stream) : m_out_stream(out_stream) {}
 
   void printProgGraph(const ProgramGraph &graph);
+
+  void printBlock(BasicBlock *bb);
 };
 
 } // namespace koda

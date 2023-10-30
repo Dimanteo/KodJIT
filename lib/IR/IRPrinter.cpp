@@ -19,4 +19,9 @@ void IRPrinter::printProgGraph(const ProgramGraph &graph) {
   m_out_stream << "}";
 }
 
+void IRPrinter::printBlock(BasicBlock *bb) {
+  m_out_stream << "BB" << bb->getID() << ":\n";
+  // TODO: For each instruction
+}
+
 } // namespace koda
