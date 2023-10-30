@@ -10,6 +10,19 @@
 
 namespace koda {
 
+class Parameter {
+  static constexpr ssize_t INVALID_IDX = std::numeric_limits<size_t>::max();
+
+  size_t m_index = INVALID_IDX;
+  OperandType m_type = OperandType::TYPE_INVALID;
+
+public:
+  Parameter(int index, OperandType type) : m_index(index), m_type(type) {}
+
+  size_t getIndex() const { return m_index; }
+  OperandType getType() const { return m_type; }
+};
+
 class ProgramGraph final {
 public:
   using BasicBlockArena = std::vector<std::unique_ptr<BasicBlock>>;
@@ -19,9 +32,7 @@ private:
 
   std::vector<std::unique_ptr<Instruction>> m_inst_arena{};
 
-  std::vector<ProgParam> m_params{};
-
-  std::vector<IntConstOperand> m_consts{};
+  std::vector<Parameter> m_params{};
 
   BasicBlock *m_entry = nullptr;
 
@@ -41,22 +52,20 @@ public:
 
   BasicBlock *getEntry() const { return m_entry; }
 
-  void appendParam(OperandType type) { m_params.emplace_back(type); }
+  // Create program parameter of given type.
+  // Return index of that parameter
+  //
+  size_t createParam(OperandType type) {
+    size_t idx = m_params.size();
+    m_params.emplace_back(idx, type);
+    return idx;
+  }
 
-  void popParam() { m_params.pop_back(); }
+  void popBackParam() { m_params.pop_back(); }
 
-  ProgParam *getParam(size_t idx) { return &m_params[idx]; }
+  Parameter getParam(size_t idx) { return m_params[idx]; }
 
   size_t getNumParams() const { return m_params.size(); }
-
-  ProgParam *paramBack() { return &m_params.back(); }
-
-  ProgParam *paramFront() { return &m_params.front(); }
-
-  IntConstOperand *createIntConstant(uint64_t value) {
-    m_consts.emplace_back(value);
-    return &m_consts.back();
-  }
 
   // TODO: iterators
   void for_each_block(std::function<void(const BasicBlock &)> funct) const {

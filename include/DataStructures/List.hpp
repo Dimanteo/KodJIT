@@ -4,7 +4,6 @@
 #include <functional>
 #include <stddef.h>
 #include <type_traits>
-#include <vector>
 
 namespace koda {
 

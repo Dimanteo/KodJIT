@@ -1,4 +1,5 @@
 #include "IR/IROperand.hpp"
+#include "IR/Instruction.hpp"
 #include <IR/IRBuilder.hpp>
 #include <IR/ProgramGraph.hpp>
 
@@ -24,36 +25,35 @@ static std::string makeErrorStr(std::initializer_list<IOperand *> received,
   return msg;
 }
 
-BasicBlock *IRBuilder::createBasicBlock() { return m_graph->createBasicBlock(); }
-
-ProgParam *IRBuilder::appendProgParam(OperandType type) {
-  m_graph->appendParam(type);
-  return m_graph->paramBack();
+static void addUserTo(Instruction *user, std::vector<Instruction *> sources) {
+  std::for_each(sources.begin(), sources.end(), [user](Instruction *src) { src->addUser(user); });
 }
 
-void IRBuilder::popProgParam() { m_graph->popParam(); }
+LoadParam *IRBuilder::createParamLoad(size_t param_idx) {
+  if (param_idx >= m_graph->getNumParams()) {
+    throw IRInvalidArgument("Invalid parameter index");
+  }
 
-ProgParam *IRBuilder::getProgParam(size_t idx) const { return m_graph->getParam(idx); }
+  auto param = m_graph->getParam(param_idx);
+  auto load = m_graph->createInstruction<LoadParam>(param.getType(), param.getIndex());
+  addInstruction(load);
 
-IntConstOperand *IRBuilder::createIntConstant(uint64_t value) { return m_graph->createIntConstant(value); }
+  return load;
+}
 
-static void connectUsers(Instruction *user, std::vector<IOperand *> sources) {
-  std::for_each(sources.begin(), sources.end(), [user](IOperand *src) {
-    if (src->isTrackingUsers()) {
-      src->cast_to<Instruction>()->addUser(user);
-    }
-  });
+LoadConstant<uint64_t> *IRBuilder::createIntConstant(uint64_t value) {
+  return m_graph->createInstruction<LoadConstant<uint64_t>>(OperandType::INTEGER, value);
 }
 
 ArithmeticInstruction *IRBuilder::createArithmeticInstruction(InstOpcode opcode, OperandType type,
-                                                              IOperand *lhs, IOperand *rhs) {
+                                                              Instruction *lhs, Instruction *rhs) {
   if (lhs->getType() != type || rhs->getType() != type) {
     throw IROperandError(makeErrorStr({lhs, rhs}, {type, type}));
   }
 
   auto inst = m_graph->createInstruction<ArithmeticInstruction>(opcode, type, lhs, rhs);
   addInstruction(inst);
-  connectUsers(inst, {lhs, rhs});
+  addUserTo(inst, {lhs, rhs});
   return inst;
 }
 
@@ -72,8 +72,8 @@ BranchInstruction *IRBuilder::createBranch(BasicBlock *target) {
 }
 
 ConditionalBranchInstruction *IRBuilder::createConditionalBranch(CmpFlag cmp_flag, BasicBlock *false_block,
-                                                                 BasicBlock *true_block, IOperand *lhs,
-                                                                 IOperand *rhs) {
+                                                                 BasicBlock *true_block, Instruction *lhs,
+                                                                 Instruction *rhs) {
   if (lhs->getType() != OperandType::INTEGER || rhs->getType() != OperandType::INTEGER) {
     throw IROperandError(makeErrorStr({lhs, rhs}, {OperandType::INTEGER, OperandType::INTEGER}));
   }
@@ -81,9 +81,9 @@ ConditionalBranchInstruction *IRBuilder::createConditionalBranch(CmpFlag cmp_fla
   auto inst =
       m_graph->createInstruction<ConditionalBranchInstruction>(cmp_flag, false_block, true_block, lhs, rhs);
   addInstruction(inst);
-  connectUsers(inst, {lhs, rhs});
+  addUserTo(inst, {lhs, rhs});
 
-  auto curr_bb =  getInsertPoint();
+  auto curr_bb = getInsertPoint();
 
   // Update successors only if this is first branch in bb. Otherwise current instruction is unreachable.
   //

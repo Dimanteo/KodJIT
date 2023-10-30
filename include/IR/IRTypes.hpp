@@ -18,7 +18,9 @@ enum InstOpcode : uint8_t {
   INST_MOD,
   INST_BRANCH,
   INST_COND_BR,
-  INST_PHI
+  INST_PHI,
+  INST_PARAM,
+  INST_CONST
 };
 
 inline constexpr bool isTerminatorOpcode(InstOpcode opc) {

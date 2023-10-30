@@ -4,6 +4,7 @@
 #include <IR/IROperand.hpp>
 #include <IR/IRTypes.hpp>
 
+#include <limits>
 #include <stddef.h>
 #include <vector>
 
@@ -13,8 +14,7 @@ class BasicBlock;
 
 // Base class for IR instruction
 //
-class Instruction : public IntrusiveListNode<Instruction, IntrusiveList<Instruction>>,
-                    public IOperand {
+class Instruction : public IntrusiveListNode<Instruction, IntrusiveList<Instruction>>, public IOperand {
   instid_t m_id;
 
   InstOpcode m_opcode = INST_INVALID;
@@ -37,8 +37,6 @@ public:
   void setBB(BasicBlock *bb) { m_bblock = bb; }
 
   void addUser(Instruction *user) { m_users.push_back(user); }
-
-  bool isTrackingUsers() const override { return true; }
 
   bool isTerminator() const { return isTerminatorOpcode(m_opcode); }
 };
@@ -107,6 +105,31 @@ class PhiNodeInstruction : public Instruction {
 public:
   PhiNodeInstruction(instid_t id, std::initializer_list<IPhiOperand *> options)
       : Instruction(id, InstOpcode::INST_PHI), m_options{options} {}
+};
+
+class LoadParam : public Instruction {
+  OperandType m_type = OperandType::TYPE_INVALID;
+  size_t m_index = std::numeric_limits<size_t>::max();
+
+public:
+  LoadParam(instid_t id, OperandType type, size_t index)
+      : Instruction(id, INST_PARAM), m_type(type), m_index(index) {}
+
+  OperandType getType() const override { return m_type; }
+
+  size_t getIndex() const { return m_index; }
+};
+
+template <typename ValueTy> class LoadConstant : public Instruction {
+  ValueTy m_value{};
+  OperandType m_type = OperandType::TYPE_INVALID;
+
+public:
+  LoadConstant(instid_t id, OperandType type, ValueTy value)
+      : Instruction(id, INST_CONST), m_value(value), m_type(type) {}
+
+  OperandType getType() const override { return m_type; }
+  ValueTy getValue() const { return m_value; }
 };
 
 }; // namespace koda

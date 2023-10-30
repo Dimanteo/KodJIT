@@ -1,5 +1,6 @@
 #include "IR/IROperand.hpp"
 #include "IR/IRPrinter.hpp"
+#include "IR/IRTypes.hpp"
 #include <IR/BasicBlock.hpp>
 #include <IR/IRBuilder.hpp>
 #include <IR/ProgramGraph.hpp>
@@ -14,7 +15,7 @@ namespace koda {
 TEST(IRTests, empty_prog_test) {
   ProgramGraph graph;
   IRBuilder builder(graph);
-  BasicBlock *bb = builder.createBasicBlock();
+  BasicBlock *bb = graph.createBasicBlock();
   builder.setEntryPoint(bb);
   builder.setInsertPoint(bb);
 }
@@ -22,11 +23,15 @@ TEST(IRTests, empty_prog_test) {
 TEST(IRTests, add_test) {
   ProgramGraph graph;
   IRBuilder builder(graph);
-  BasicBlock *bb = builder.createBasicBlock();
+
+  BasicBlock *bb = graph.createBasicBlock();
   builder.setEntryPoint(bb);
   builder.setInsertPoint(bb);
 
-  auto param = builder.appendProgParam(OperandType::INTEGER);
+  size_t par_idx = graph.createParam(OperandType::INTEGER);
+
+  auto param = builder.createParamLoad(par_idx);
+
   builder.createIAdd(builder.createIntConstant(42), param);
 }
 
@@ -34,8 +39,8 @@ TEST(IRTests, branch_test) {
   ProgramGraph graph;
   IRBuilder builder(graph);
 
-  BasicBlock *bb = builder.createBasicBlock();
-  BasicBlock *target = builder.createBasicBlock();
+  BasicBlock *bb = graph.createBasicBlock();
+  BasicBlock *target = graph.createBasicBlock();
 
   builder.setEntryPoint(bb);
   builder.setInsertPoint(bb);

@@ -19,6 +19,10 @@ struct IROperandError : std::runtime_error {
   static const char *makeErrorStr(std::initializer_list<IOperand> ops, OperandType expected);
 };
 
+struct IRInvalidArgument : std::runtime_error {
+  IRInvalidArgument(const char *msg) : std::runtime_error(msg) {}
+};
+
 class IRBuilder final {
 
   ProgramGraph *m_graph;
@@ -26,15 +30,13 @@ class IRBuilder final {
   // Block where new instructions are inserted.
   BasicBlock *m_insert_bb;
 
-  ArithmeticInstruction *createArithmeticInstruction(InstOpcode opcode, OperandType type, IOperand *lhs,
-                                                     IOperand *rhs);
+  ArithmeticInstruction *createArithmeticInstruction(InstOpcode opcode, OperandType type, Instruction *lhs,
+                                                     Instruction *rhs);
 
   void addInstruction(Instruction *inst) { m_insert_bb->addInstruction(inst); }
 
 public:
   IRBuilder(ProgramGraph &graph) : m_graph(&graph) {}
-
-  BasicBlock *createBasicBlock();
 
   void setEntryPoint(BasicBlock *bb) { m_graph->setEntry(bb); }
 
@@ -42,38 +44,32 @@ public:
 
   BasicBlock *getInsertPoint() const { return m_insert_bb; }
 
-  // Appends parameter to the end of parameters list
-  ProgParam *appendProgParam(OperandType type);
+  LoadParam *createParamLoad(size_t param_idx);
 
-  // Remove last parameter from parameters list
-  void popProgParam();
-
-  ProgParam *getProgParam(size_t idx) const;
-
-  IntConstOperand *createIntConstant(uint64_t value);
+  LoadConstant<uint64_t> *createIntConstant(uint64_t value);
 
   BranchInstruction *createBranch(BasicBlock *target);
 
   ConditionalBranchInstruction *createConditionalBranch(CmpFlag cmp_flag, BasicBlock *false_block,
-                                                        BasicBlock *true_block, IOperand *lhs, IOperand *rhs);
+                                                        BasicBlock *true_block, Instruction *lhs, Instruction *rhs);
 
-  ArithmeticInstruction *createIAdd(IOperand *lhs, IOperand *rhs) {
+  ArithmeticInstruction *createIAdd(Instruction *lhs, Instruction *rhs) {
     return createArithmeticInstruction(INST_ADD, OperandType::INTEGER, lhs, rhs);
   }
 
-  ArithmeticInstruction *createISub(IOperand *lhs, IOperand *rhs) {
+  ArithmeticInstruction *createISub(Instruction *lhs, Instruction *rhs) {
     return createArithmeticInstruction(INST_SUB, OperandType::INTEGER, lhs, rhs);
   }
 
-  ArithmeticInstruction *createIMul(IOperand *lhs, IOperand *rhs) {
+  ArithmeticInstruction *createIMul(Instruction *lhs, Instruction *rhs) {
     return createArithmeticInstruction(INST_MUL, OperandType::INTEGER, lhs, rhs);
   }
 
-  ArithmeticInstruction *createIDiv(IOperand *lhs, IOperand *rhs) {
+  ArithmeticInstruction *createIDiv(Instruction *lhs, Instruction *rhs) {
     return createArithmeticInstruction(INST_DIV, OperandType::INTEGER, lhs, rhs);
   }
 
-  ArithmeticInstruction *createMod(IOperand *lhs, IOperand *rhs) {
+  ArithmeticInstruction *createMod(Instruction *lhs, Instruction *rhs) {
     return createArithmeticInstruction(INST_MOD, OperandType::INTEGER, lhs, rhs);
   }
 };

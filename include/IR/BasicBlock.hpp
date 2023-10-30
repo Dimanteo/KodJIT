@@ -66,8 +66,6 @@ public:
 
   OperandType getType() const override { return OperandType::LABEL; }
 
-  bool isTrackingUsers() const override { return false; }
-
   void for_each_succ(std::function<void(BasicBlock &)> funct) const;
 };
 
