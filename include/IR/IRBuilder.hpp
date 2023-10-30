@@ -46,12 +46,13 @@ public:
 
   LoadParam *createParamLoad(size_t param_idx);
 
-  LoadConstant<uint64_t> *createIntConstant(uint64_t value);
+  LoadConstant<int64_t> *createIntConstant(int64_t value);
 
   BranchInstruction *createBranch(BasicBlock *target);
 
   ConditionalBranchInstruction *createConditionalBranch(CmpFlag cmp_flag, BasicBlock *false_block,
-                                                        BasicBlock *true_block, Instruction *lhs, Instruction *rhs);
+                                                        BasicBlock *true_block, Instruction *lhs,
+                                                        Instruction *rhs);
 
   ArithmeticInstruction *createIAdd(Instruction *lhs, Instruction *rhs) {
     return createArithmeticInstruction(INST_ADD, OperandType::INTEGER, lhs, rhs);
@@ -72,6 +73,8 @@ public:
   ArithmeticInstruction *createMod(Instruction *lhs, Instruction *rhs) {
     return createArithmeticInstruction(INST_MOD, OperandType::INTEGER, lhs, rhs);
   }
+
+  PhiInstruction *createPHI(OperandType type);
 };
 
 } // namespace koda

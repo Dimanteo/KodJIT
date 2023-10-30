@@ -41,8 +41,8 @@ LoadParam *IRBuilder::createParamLoad(size_t param_idx) {
   return load;
 }
 
-LoadConstant<uint64_t> *IRBuilder::createIntConstant(uint64_t value) {
-  return m_graph->createInstruction<LoadConstant<uint64_t>>(OperandType::INTEGER, value);
+LoadConstant<int64_t> *IRBuilder::createIntConstant(int64_t value) {
+  return m_graph->createInstruction<LoadConstant<int64_t>>(OperandType::INTEGER, value);
 }
 
 ArithmeticInstruction *IRBuilder::createArithmeticInstruction(InstOpcode opcode, OperandType type,
@@ -58,12 +58,11 @@ ArithmeticInstruction *IRBuilder::createArithmeticInstruction(InstOpcode opcode,
 }
 
 BranchInstruction *IRBuilder::createBranch(BasicBlock *target) {
-  auto br_inst = m_graph->createInstruction<BranchInstruction>(target);
+  auto br_inst = m_graph->createInstruction<BranchInstruction>();
   addInstruction(br_inst);
 
   auto curr_bb = getInsertPoint();
   if (!curr_bb->hasSuccessor()) {
-    std::cout << "Connect " << curr_bb << " -> " << target << "\n";
     curr_bb->setUncondSuccessor(target);
     target->addPredecessor(curr_bb);
   }
@@ -78,8 +77,7 @@ ConditionalBranchInstruction *IRBuilder::createConditionalBranch(CmpFlag cmp_fla
     throw IROperandError(makeErrorStr({lhs, rhs}, {OperandType::INTEGER, OperandType::INTEGER}));
   }
 
-  auto inst =
-      m_graph->createInstruction<ConditionalBranchInstruction>(cmp_flag, false_block, true_block, lhs, rhs);
+  auto inst = m_graph->createInstruction<ConditionalBranchInstruction>(cmp_flag, lhs, rhs);
   addInstruction(inst);
   addUserTo(inst, {lhs, rhs});
 
@@ -94,6 +92,12 @@ ConditionalBranchInstruction *IRBuilder::createConditionalBranch(CmpFlag cmp_fla
   }
 
   return inst;
+}
+
+PhiInstruction *IRBuilder::createPHI(OperandType type) {
+  auto phi = m_graph->createInstruction<PhiInstruction>(type);
+  addInstruction(phi);
+  return phi;
 }
 
 }; // namespace koda

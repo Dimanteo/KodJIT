@@ -17,8 +17,4 @@ struct IOperand {
   virtual OperandType getType() const = 0;
 };
 
-struct IPhiOperand : public IOperand {
-  virtual BasicBlock *getSrcBB() const = 0;
-};
-
 }; // namespace koda

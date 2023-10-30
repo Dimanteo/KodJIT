@@ -6,6 +6,7 @@
 
 #include <limits>
 #include <stddef.h>
+#include <unordered_map>
 #include <vector>
 
 namespace koda {
@@ -19,9 +20,10 @@ class Instruction : public IntrusiveListNode<Instruction, IntrusiveList<Instruct
 
   InstOpcode m_opcode = INST_INVALID;
 
-  BasicBlock *m_bblock = nullptr;
-
   std::vector<Instruction *> m_users{};
+
+protected:
+  BasicBlock *m_bblock = nullptr;
 
 public:
   virtual ~Instruction() = default;
@@ -41,13 +43,10 @@ public:
   bool isTerminator() const { return isTerminatorOpcode(m_opcode); }
 };
 
-class BranchInstruction : public Instruction {
-  BasicBlock *m_target;
+struct BranchInstruction : public Instruction {
+  BranchInstruction(instid_t id) : Instruction(id, INST_BRANCH) {}
 
-public:
-  BranchInstruction(instid_t id, BasicBlock *target) : Instruction(id, INST_BRANCH), m_target(target) {}
-
-  BasicBlock *getTarget() const { return m_target; }
+  BasicBlock *getTarget() const;
 
   OperandType getType() const override { return OperandType::NONE; }
 };
@@ -69,21 +68,17 @@ public:
 class ConditionalBranchInstruction : public BinaryOpInstructionBase {
   enum TargetIdx : unsigned { FALSE_IDX = 0, TRUE_IDX = 1 };
 
-  std::array<BasicBlock *, 2> m_targets = {};
-
   CmpFlag m_flag = CMP_INVALID;
 
 public:
-  ConditionalBranchInstruction(instid_t id, CmpFlag flag, BasicBlock *false_block, BasicBlock *true_block,
-                               IOperand *lhs, IOperand *rhs)
-      : BinaryOpInstructionBase(id, INST_COND_BR, lhs, rhs), m_targets({false_block, true_block}),
-        m_flag(flag) {}
+  ConditionalBranchInstruction(instid_t id, CmpFlag flag, Instruction *lhs, Instruction *rhs)
+      : BinaryOpInstructionBase(id, INST_COND_BR, lhs, rhs), m_flag(flag) {}
 
   CmpFlag getFlag() const { return m_flag; }
 
-  BasicBlock *getFalseBLock() const { return m_targets[FALSE_IDX]; }
+  BasicBlock *getFalseBLock() const;
 
-  BasicBlock *getTrueBlock() const { return m_targets[TRUE_IDX]; }
+  BasicBlock *getTrueBlock() const;
 
   OperandType getType() const override { return OperandType::NONE; }
 };
@@ -98,13 +93,18 @@ public:
   OperandType getType() const override { return m_type; }
 };
 
-class PhiNodeInstruction : public Instruction {
-
-  std::vector<IPhiOperand *> m_options;
+class PhiInstruction : public Instruction {
+  OperandType m_type;
+  std::vector<BasicBlock *> m_incoming_blocks;
+  std::vector<Instruction *> m_values;
 
 public:
-  PhiNodeInstruction(instid_t id, std::initializer_list<IPhiOperand *> options)
-      : Instruction(id, InstOpcode::INST_PHI), m_options{options} {}
+  PhiInstruction(instid_t id, OperandType type)
+      : Instruction(id, INST_PHI), m_type(type) {}
+
+  void addOption(BasicBlock *incoming_bb, Instruction *value);
+
+  OperandType getType() const override { return m_type; }
 };
 
 class LoadParam : public Instruction {
