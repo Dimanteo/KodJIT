@@ -45,7 +45,10 @@ public:
 
   bbid_t getID() const { return m_id; }
 
-  void addInstruction(Instruction *instruction) { m_instructions.insertTail(instruction); }
+  void addInstruction(Instruction *instruction) {
+    m_instructions.insertTail(instruction);
+    instruction->setBB(this);
+  }
 
   Instruction *removeInstruction(Instruction *instruction);
 
@@ -67,6 +70,16 @@ public:
   OperandType getType() const override { return OperandType::LABEL; }
 
   void for_each_succ(std::function<void(BasicBlock &)> funct) const;
+
+  // Basic block iterators
+  using iterator = InstructionList::iterator;
+  using const_iterator = InstructionList::const_iterator;
+
+  iterator begin() noexcept { return m_instructions.begin(); }
+  iterator end() noexcept { return m_instructions.end(); }
+
+  // const_iterator cbegin() const noexcept { return m_instructions.cbegin(); }
+  // const_iterator cend() const noexcept { return m_instructions.cend(); }
 };
 
 } // namespace koda

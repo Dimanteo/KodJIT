@@ -1,0 +1,1 @@
+dot -Tpng $1 -o $(basename -s .dot $1).png

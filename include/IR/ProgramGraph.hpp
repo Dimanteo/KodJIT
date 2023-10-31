@@ -68,7 +68,7 @@ public:
   size_t getNumParams() const { return m_params.size(); }
 
   // TODO: iterators
-  void for_each_block(std::function<void(const BasicBlock &)> funct) const {
+  void for_each_block(std::function<void(BasicBlock &)> funct) const {
     for (const auto &bb_ptr : m_bb_arena) {
       funct(*bb_ptr.get());
     }

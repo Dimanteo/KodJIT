@@ -42,7 +42,9 @@ LoadParam *IRBuilder::createParamLoad(size_t param_idx) {
 }
 
 LoadConstant<int64_t> *IRBuilder::createIntConstant(int64_t value) {
-  return m_graph->createInstruction<LoadConstant<int64_t>>(OperandType::INTEGER, value);
+  auto inst = m_graph->createInstruction<LoadConstant<int64_t>>(OperandType::INTEGER, value);
+  addInstruction(inst);
+  return inst;
 }
 
 ArithmeticInstruction *IRBuilder::createArithmeticInstruction(InstOpcode opcode, OperandType type,

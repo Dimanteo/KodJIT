@@ -22,16 +22,17 @@ BasicBlock *ConditionalBranchInstruction::getFalseBLock() const { return m_bbloc
 
 BasicBlock *ConditionalBranchInstruction::getTrueBlock() const { return m_bblock->getTrueSuccessor(); }
 
-void BranchInstruction::dump_(std::ostream &os) {
-  os << "b " << "BB" << getTarget()->getID();
+void BranchInstruction::dump_(std::ostream &os) const {
+  os << "b " << "bb" << getTarget()->getID();
 }
 
-void ConditionalBranchInstruction::dump_(std::ostream &os) {
+void ConditionalBranchInstruction::dump_(std::ostream &os) const {
   os << "b." << FlagToStr[m_flag] << " ";
-  os << "F: BB" << getFalseBLock()->getID() << "T: BB" << getTrueBlock()->getID();
+  os << "i" << getLhs()->getID() << ", i" << getRhs()->getID() << " ";
+  os << "F: bb" << getFalseBLock()->getID() << " T: bb" << getTrueBlock()->getID();
 }
 
-void ArithmeticInstruction::dump_(std::ostream &os) {
+void ArithmeticInstruction::dump_(std::ostream &os) const {
   os << OperandTypeToStr[getType()] << " ";
   switch (getOpcode()) {
     case INST_ADD:
@@ -60,12 +61,12 @@ void ArithmeticInstruction::dump_(std::ostream &os) {
   dump_arg(os, getRhs());
 }
 
-void PhiInstruction::dump_(std::ostream &os) {
-  os << "phi" << OperandTypeToStr;
+void PhiInstruction::dump_(std::ostream &os) const {
+  os << "phi " << OperandTypeToStr[m_type];
   for (size_t i = 0; i < m_incoming_blocks.size(); ++i) {
     auto bb = m_incoming_blocks[i];
     auto inst = m_values[i];
-    os << " " << i <<  ": [Src: BB" << bb->getID() << ", Val: i" << inst->getID() << "]; ";
+    os << " [" << i <<  ": bb" << bb->getID() << " i" << inst->getID() << "]; ";
   }
 }
 

@@ -9,13 +9,11 @@ namespace koda {
 
 // Base node of intrusive linked list
 //
-template <class Derived, class Container> class IntrusiveListNode {
-  friend Container;
+class IntrusiveListNode {
+  using Node = IntrusiveListNode;
 
 public:
-  using Node = Derived;
-
-  constexpr static Node *NIL_NODE() { return nullptr; };
+  constexpr static auto NIL_NODE() { return nullptr; };
 
   static bool isNIL(const Node *node) { return node == NIL_NODE(); }
   static bool isNIL(const Node &node) { return isNIL(&node); }
@@ -23,7 +21,11 @@ public:
 private:
   Node *m_prev = nullptr;
   Node *m_next = nullptr;
-  Container *m_parent = nullptr;
+
+public:
+  virtual ~IntrusiveListNode() = default;
+
+  IntrusiveListNode() = default;
 
   void setNext(Node &next) { setNext(&next); }
 
@@ -33,35 +35,86 @@ private:
 
   void setPrev(Node *prev) { m_prev = prev; }
 
-  void setParent(Container &parent) { setParent(&parent); }
+  Node *getNext() const { return m_next; }
 
-  void setParent(Container *parent) { m_parent = parent; }
-
-public:
-  virtual ~IntrusiveListNode() = default;
-
-  IntrusiveListNode() = default;
-
-  Derived *getNext() const { return static_cast<Derived *>(m_next); }
-
-  Derived *getPrev() const { return static_cast<Derived *>(m_prev); }
-
-  Container *getParent() const { return m_parent; }
+  Node *getPrev() const { return m_prev; }
 
   bool hasNext() const { return !isNIL(m_next); }
 
   bool hasPrev() const { return !isNIL(m_prev); }
-
-  bool isInContainer() const { return m_parent != nullptr; }
 };
+
+namespace detail {
+
+template <class InNode> class IntrusiveListIterator final {
+
+  static_assert(std::is_base_of<IntrusiveListNode, InNode>::value,
+                "Node type must be derived from intrusive node");
+
+public:
+  using value_type = InNode;
+  using pointer = value_type *;
+  using reference = value_type &;
+  using difference_type = std::ptrdiff_t;
+  using iterator_category = std::bidirectional_iterator_tag;
+
+private:
+  pointer m_node_ptr = nullptr;
+
+public:
+  IntrusiveListIterator() = default;
+
+  explicit IntrusiveListIterator(pointer node) : m_node_ptr(node) {}
+
+  explicit IntrusiveListIterator(reference node) : m_node_ptr(&node) {}
+
+  [[nodiscard]] reference operator*() const noexcept { return *static_cast<pointer>(m_node_ptr); }
+
+  IntrusiveListIterator &operator++() noexcept {
+    m_node_ptr = static_cast<pointer>(m_node_ptr->getNext());
+    return *this;
+  }
+
+  IntrusiveListIterator &operator--() noexcept {
+    m_node_ptr = m_node_ptr->getPrev();
+    return *this;
+  }
+
+  IntrusiveListIterator &operator++(int) noexcept {
+    auto tmp = *this;
+    ++*this;
+    return tmp;
+  }
+
+  IntrusiveListIterator &operator--(int) noexcept {
+    auto tmp = *this;
+    --*this;
+    return tmp;
+  }
+
+  [[nodiscard]] pointer operator->() const noexcept { return static_cast<pointer>(m_node_ptr); }
+
+  bool is_equal(IntrusiveListIterator &other) const noexcept { return m_node_ptr == other.m_node_ptr; }
+};
+
+template <typename InNode>
+bool operator==(IntrusiveListIterator<InNode> lhs, IntrusiveListIterator<InNode> rhs) {
+  return lhs.is_equal(rhs);
+}
+
+template <typename InNode>
+bool operator!=(IntrusiveListIterator<InNode> lhs, IntrusiveListIterator<InNode> rhs) {
+  return !(lhs == rhs);
+}
+
+} // namespace detail
 
 // Container for intrusive list nodes. InNode must be derived from IntrusiveListNode.
 //
 template <class InNode> class IntrusiveList final {
 public:
-  using NodeBase = IntrusiveListNode<InNode, IntrusiveList>;
-
-  static_assert(std::is_base_of<NodeBase, InNode>::value);
+  static_assert(std::is_base_of<IntrusiveListNode, InNode>::value,
+                "Node type must be derived from intrusive node");
 
 private:
   InNode *m_head = nullptr;
@@ -77,16 +130,26 @@ private:
   void setTail(InNode *node) { m_tail = node; }
 
 public:
+  using iterator = detail::IntrusiveListIterator<InNode>;
+  using const_iterator = detail::IntrusiveListIterator<std::add_const_t<InNode>>;
+  using value_type = typename iterator::value_type;
+  using pointer = typename iterator::pointer;
+  using const_pointer = std::add_const_t<pointer>;
+  using reference = typename iterator::reference;
+  using const_reference = std::add_const_t<reference>;
+
+  iterator begin() noexcept { return iterator{getHead()}; }
+  iterator end() noexcept { return iterator{static_cast<pointer>(InNode::NIL_NODE())}; }
+
+  const_iterator cbegin() const noexcept { return iterator{getHead()}; }
+  const_iterator cend() const noexcept { return iterator{static_cast<pointer>(InNode::NIL_NODE())}; }
+
   void insertTail(InNode *node) {
     assert(!InNode::isNIL(node) && "Invalid node passed as argument");
     insertTail(*node);
   }
 
   void insertTail(InNode &node) {
-    assert(!node.isInContainer() && "Can't insert node from different list");
-
-    node.setParent(this);
-
     if (empty()) {
       assert(InNode::isNIL(m_head) && "invalid value for head in empty list");
       assert(InNode::isNIL(m_tail) && "invalid value for tail in empty list");
@@ -110,10 +173,6 @@ public:
   }
 
   void insertHead(InNode &node) {
-    assert(!node.isInContainer() && "Can't insert node from different list");
-
-    node.setParent(this);
-
     if (empty()) {
       assert(InNode::isNIL(m_head) && "invalid value for head in empty list");
       assert(InNode::isNIL(m_tail) && "invalid value for tail in empty list");
@@ -143,10 +202,6 @@ public:
       return;
     }
 
-    assert(!node.isInContainer() && "Can't insert node from different list");
-
-    node.setParent(this);
-
     InNode *next = insertPoint.getNext();
     next->setPrev(node);
     insertPoint.setNext(node);
@@ -166,10 +221,6 @@ public:
       return;
     }
 
-    assert(!node.isInContainer() && "Can't insert node from different list");
-
-    node.setParent(this);
-
     InNode *prev = insertPoint.getPrev();
     insertPoint.setPrev(node);
     prev->setNext(node);
@@ -181,8 +232,6 @@ public:
     if (empty()) {
       return;
     }
-
-    m_head->setParent(nullptr);
 
     if (!m_head->hasNext()) {
       m_head->setPrev(InNode::NIL_NODE());
@@ -203,8 +252,6 @@ public:
     if (empty()) {
       return;
     }
-
-    m_tail->setParent(nullptr);
 
     if (!m_tail->hasPrev()) {
       m_tail->setPrev(InNode::NIL_NODE());
@@ -229,9 +276,6 @@ public:
   // \returns next node after removed one or NIL if node is last.
   InNode *remove(InNode &node) {
     assert(!InNode::isNIL(node) && "Invalid node passed as argument");
-    assert(node.getParent() == this && "Can't remove node from different container");
-
-    node.setParent(nullptr);
 
     if (!node.hasPrev()) {
       removeHead();
@@ -252,14 +296,6 @@ public:
     node.setNext(InNode::NIL_NODE());
 
     return next;
-  }
-
-  void foreach (std::function<void(const InNode &node)> action) {
-    InNode *curr_node = getHead();
-    while (!InNode::isNIL(curr_node)) {
-      action(*curr_node);
-      curr_node = curr_node->getNext();
-    }
   }
 
   InNode *getHead() const { return m_head; }

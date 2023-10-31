@@ -11,7 +11,7 @@ enum OperandType { TYPE_INVALID = 0, NONE, BOOLEAN, BYTE, INTEGER, FLOAT, STRING
 
 // Must be aligned with OperanType enum.
 // Cringe.
-constexpr const char *OperandTypeToStr[] = {"Invalid", "None", "Bool", "Int", "Float", "Str", "Lbl"};
+constexpr const char *OperandTypeToStr[] = {"invalid", "none", "bool", "byte", "int", "float", "str", "lbl"};
 
 struct IOperand {
   virtual OperandType getType() const = 0;
