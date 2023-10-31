@@ -11,6 +11,13 @@
 
 namespace koda {
 
+void dumpCFG(const char *test_name, ProgramGraph &prog) {
+  std::ofstream dot_log(test_name, std::ios_base::out);
+  IRPrinter printer(dot_log);
+  printer.printProgGraph(prog);
+  dot_log.close();
+}
+
 TEST(IRTests, empty_prog_test) {
   ProgramGraph graph;
   IRBuilder builder(graph);
@@ -46,10 +53,7 @@ TEST(IRTests, branch_test) {
 
   builder.createBranch(target);
 
-  std::ofstream dot_log("br.dot", std::ios_base::out);
-  IRPrinter printer(dot_log);
-  printer.printProgGraph(graph);
-  dot_log.close();
+  dumpCFG("branch_test", graph);
 }
 
 TEST(IRTests, cond_br_test) {
@@ -86,10 +90,47 @@ TEST(IRTests, cond_br_test) {
   phi->addOption(true_bb, true_val);
   builder.createIMul(builder.createIntConstant(5), phi);
 
-  std::ofstream dot_log("cond_br.dot", std::ios_base::out);
-  IRPrinter printer(dot_log);
-  printer.printProgGraph(prog);
-  dot_log.close();
+  dumpCFG("cond_br_test", prog);
+}
+
+TEST(IRTests, factorial) {
+  ProgramGraph prog;
+  IRBuilder builder(prog);
+
+  auto param_N = prog.createParam(OperandType::INTEGER);
+  auto entry_bb = prog.createBasicBlock();
+  auto loop_head_bb = prog.createBasicBlock();
+  auto loop_bb = prog.createBasicBlock();
+  auto done_bb = prog.createBasicBlock();
+
+  builder.setEntryPoint(entry_bb);
+  builder.setInsertPoint(entry_bb);
+
+  auto res_init = builder.createIntConstant(1);
+  auto iter_init = builder.createIntConstant(2);
+  auto N =  builder.createParamLoad(param_N);
+
+  builder.createBranch(loop_head_bb);
+  builder.setInsertPoint(loop_head_bb);
+
+  auto iter = builder.createPHI(OperandType::INTEGER);
+  auto res = builder.createPHI(OperandType::INTEGER);
+  builder.createConditionalBranch(CmpFlag::CMP_G, loop_bb, done_bb, iter, N);
+
+  builder.setInsertPoint(loop_bb);
+
+  auto res_loop = builder.createIMul(res, iter);
+
+  auto iter_loop = builder.createIAdd(iter, builder.createIntConstant(1));
+  builder.createBranch(loop_head_bb);
+
+  iter->addOption(entry_bb, iter_init);
+  iter->addOption(loop_bb, iter_loop);
+
+  res->addOption(entry_bb, res_init);
+  res->addOption(loop_bb, res_loop);
+
+  dumpCFG("factorial", prog);
 }
 
 } // namespace koda
