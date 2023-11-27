@@ -35,19 +35,18 @@ public:
   static SuccIterator succEnd(TestGraph &this_, NodeId node) { return this_.m_succs[node].end(); }
 };
 
-
 TEST(GraphTests, DFSFork) {
-/*
-┌───┐     ┌───┐
-│ 0 │ ──▶ │ 1 │
-└───┘     └───┘
-  │
-  │
-  ▼
-┌───┐
-│ 2 │
-└───┘
-*/
+  /*
+  ┌───┐     ┌───┐
+  │ 0 │ ──▶ │ 1 │
+  └───┘     └───┘
+    │
+    │
+    ▼
+  ┌───┐
+  │ 2 │
+  └───┘
+  */
 
   TestGraph graph(3);
   graph.add_edge(0, 1);
@@ -74,13 +73,12 @@ TEST(GraphTests, DFSFork) {
   }
 }
 
-
 TEST(GraphTests, DFSLinear) {
-/*
-┌───┐     ┌───┐     ┌───┐     ┌───┐
-│ 0 │ ──▶ │ 1 │ ──▶ │ 2 │ ──▶ │ 3 │
-└───┘     └───┘     └───┘     └───┘
-*/
+  /*
+  ┌───┐     ┌───┐     ┌───┐     ┌───┐
+  │ 0 │ ──▶ │ 1 │ ──▶ │ 2 │ ──▶ │ 3 │
+  └───┘     └───┘     └───┘     └───┘
+  */
 
   TestGraph graph(4);
   graph.add_edge(0, 1);
@@ -103,15 +101,15 @@ TEST(GraphTests, DFSLinear) {
 }
 
 TEST(GraphTests, DFSCycle) {
-/*
-            ┌─────────┐
-            ▼         │
-┌───┐     ┌───┐     ┌───┐     ┌───┐
-│ 0 │ ──▶ │ 1 │ ──▶ │ 2 │ ──▶ │ 3 │
-└───┘     └───┘     └───┘     └───┘
-  ▲                             │
-  └─────────────────────────────┘
-*/
+  /*
+              ┌─────────┐
+              ▼         │
+  ┌───┐     ┌───┐     ┌───┐     ┌───┐
+  │ 0 │ ──▶ │ 1 │ ──▶ │ 2 │ ──▶ │ 3 │
+  └───┘     └───┘     └───┘     └───┘
+    ▲                             │
+    └─────────────────────────────┘
+  */
   TestGraph graph(4);
   graph.add_edge(0, 1);
   graph.add_edge(1, 2);
@@ -132,7 +130,37 @@ TEST(GraphTests, DFSCycle) {
   for (size_t i = 0; i < path.size(); ++i) {
     ASSERT_EQ(path[i], reference_path[i]);
   }
+}
 
+TEST(GraphTests, RPOForkJoin) {
+  /*
+  ┌───┐     ┌───┐     ┌───┐
+  │ 0 │ ──▶ │ 1 │ ──▶ │ 3 │
+  └───┘     └───┘     └───┘
+    │                   ▲
+    │                   │
+    ▼                   │
+  ┌───┐                 │
+  │ 2 │ ────────────────┘
+  └───┘
+  */
+  constexpr size_t graph_size = 4;
+
+  TestGraph graph(graph_size);
+  graph.add_edge(0, 1);
+  graph.add_edge(0, 2);
+  graph.add_edge(1, 3);
+  graph.add_edge(2, 3);
+
+  std::vector<size_t> rpo;
+  auto inserter = std::back_inserter(rpo);
+  auto visitor = [&inserter](size_t node) { *inserter = node; };
+
+  visit_rpo(graph, 0, visitor);
+
+  ASSERT_EQ(rpo.size(), graph_size);
+  ASSERT_EQ(rpo.front(), 0);
+  ASSERT_EQ(rpo.back(), 3);
 }
 
 } // namespace Tests
