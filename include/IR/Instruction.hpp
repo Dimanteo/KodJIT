@@ -7,7 +7,6 @@
 #include <limits>
 #include <ostream>
 #include <stddef.h>
-#include <unordered_map>
 #include <vector>
 
 namespace koda {
@@ -34,7 +33,7 @@ public:
   Instruction(instid_t id, InstOpcode opc) : m_id(id), m_opcode(opc) {}
 
   Instruction(const Instruction &) = delete;
-  Instruction(Instruction &&) = delete;
+  Instruction &operator=(const Instruction &) = delete;
 
   instid_t getID() const { return m_id; }
 

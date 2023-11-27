@@ -1,5 +1,8 @@
-add_executable(list_test List_test.cpp)
+function(add_gtest NAME SRC)
+  add_executable(${NAME} ${SRC})
+  target_link_libraries(${NAME} GTest::gtest_main)
+  gtest_discover_tests(${NAME})
+endfunction()
 
-target_link_libraries(list_test GTest::gtest_main)
-
-gtest_discover_tests(list_test)
+add_gtest(list_test List_test.cpp)
+add_gtest(graph_test Graph_test.cpp)
