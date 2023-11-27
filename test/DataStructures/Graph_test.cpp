@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 #include <set>
 #include <vector>
+#include <fstream>
 
 namespace koda {
 
@@ -22,6 +23,7 @@ public:
     m_preds[to].insert(from);
   }
 
+  // Graph traits
   using NodeId = size_t;
   using PredIterator = std::set<size_t>::iterator;
   using SuccIterator = std::set<size_t>::iterator;
@@ -33,6 +35,12 @@ public:
   static SuccIterator succBegin(TestGraph &this_, NodeId node) { return this_.m_succs[node].begin(); }
 
   static SuccIterator succEnd(TestGraph &this_, NodeId node) { return this_.m_succs[node].end(); }
+
+  // Printable graph traits
+  static std::string nodeToString(TestGraph &this_, NodeId node) {
+    (void)this_;
+    return std::to_string(node);
+  }
 };
 
 TEST(GraphTests, DFSFork) {
@@ -161,6 +169,10 @@ TEST(GraphTests, RPOForkJoin) {
   ASSERT_EQ(rpo.size(), graph_size);
   ASSERT_EQ(rpo.front(), 0);
   ASSERT_EQ(rpo.back(), 3);
+
+  std::ofstream dot_log("RPOForkJoin.dot", std::ios_base::out);
+  print_dot(graph, 0, dot_log);
+  dot_log.close();
 }
 
 } // namespace Tests
