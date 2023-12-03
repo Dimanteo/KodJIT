@@ -10,8 +10,8 @@ namespace koda {
 void IRPrinter::printProgGraph(ProgramGraph &graph) {
   m_out_stream << "digraph G {\n";
 
-  auto bb_print = [this](ProgramGraph::BBPtr &bb) {
-    m_out_stream << bb.get() << "[shape=record,label=\"";
+  auto bb_print = [this, &graph](ProgramGraph::BBPtr &bb) {
+    m_out_stream << ProgramGraph::nodeToString(graph, bb.get()) << " [shape=record,label=\"";
     printBlock(*bb);
     m_out_stream << "\"];\n";
   };

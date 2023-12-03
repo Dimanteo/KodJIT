@@ -83,8 +83,7 @@ void visit_rpo(Graph &graph, typename GraphTraits<Graph>::NodeId entry, Visitor 
   std::for_each(postorder.rbegin(), postorder.rend(), visitor);
 }
 
-template <typename Graph>
-struct GraphPrinter {
+template <typename Graph> struct GraphPrinter {
   using Traits = GraphTraits<Graph>;
   using PrintTraits = PrintableGraphTraits<Graph>;
 
@@ -92,9 +91,10 @@ struct GraphPrinter {
     std::stringstream ss;
 
     auto print_visitor = [&ss, &graph](typename Traits::NodeId node) {
-      ss << PrintTraits::nodeToString(graph, node) << "\n";
-
-      auto print_succ = [node, &ss](typename Traits::NodeId succ) { ss << node << " -> " << succ << "\n"; };
+      auto print_succ = [node, &graph, &ss](typename Traits::NodeId succ) {
+        ss << PrintTraits::nodeToString(graph, node) << " -> " << PrintTraits::nodeToString(graph, succ)
+           << "\n";
+      };
       std::for_each(Traits::succBegin(graph, node), Traits::succEnd(graph, node), print_succ);
     };
     visit_dfs(graph, entry, print_visitor);

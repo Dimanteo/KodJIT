@@ -13,12 +13,12 @@ static std::string makeErrorStr(std::initializer_list<IOperand *> received,
                                 std::initializer_list<OperandType> expected) {
   std::string msg = "Error - type mismatch. Operand types are :\n";
   for (auto &&op : received) {
-    msg.append(OperandTypeToStr[op->getType()]);
+    msg.append(operandTypeToStr(op->getType()));
     msg.append(" ");
   }
   msg.append("\nExpected:\n");
   for (auto &&ty : expected) {
-    msg.append(OperandTypeToStr[ty]);
+    msg.append(operandTypeToStr(ty));
     msg.append(" ");
   }
 

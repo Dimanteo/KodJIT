@@ -20,6 +20,8 @@ class Instruction : public IntrusiveListNode, public IOperand {
 
   InstOpcode m_opcode = INST_INVALID;
 
+  bool m_is_term = false;
+
   std::vector<Instruction *> m_users{};
 
 protected:
@@ -30,7 +32,7 @@ protected:
 public:
   virtual ~Instruction() = default;
 
-  Instruction(instid_t id, InstOpcode opc) : m_id(id), m_opcode(opc) {}
+  Instruction(instid_t id, InstOpcode opc) : m_id(id), m_opcode(opc), m_is_term(isTerminatorOpcode(opc)) {}
 
   Instruction(const Instruction &) = delete;
   Instruction &operator=(const Instruction &) = delete;
@@ -45,10 +47,10 @@ public:
 
   void addUser(Instruction *user) { m_users.push_back(user); }
 
-  bool isTerminator() const { return isTerminatorOpcode(m_opcode); }
+  bool isTerminator() const { return m_is_term; }
 
   void dump(std::ostream &os) const {
-    os << "i" << getID() << ": ";
+    os << "i" << getID() << ": " << instOpcToStr(getOpcode()) << " ";
     dump_(os);
   }
 };
@@ -143,7 +145,7 @@ public:
   size_t getIndex() const { return m_index; }
 
 private:
-  void dump_(std::ostream &os) const override { os << OperandTypeToStr[getType()] << " arg " << m_index; }
+  void dump_(std::ostream &os) const override { os << operandTypeToStr(getType()) << m_index; }
 };
 
 template <typename ValueTy> class LoadConstant : public Instruction {
@@ -161,7 +163,7 @@ public:
   ValueTy getValue() const { return m_value; }
 
 private:
-  void dump_(std::ostream &os) const override { os << OperandTypeToStr[m_type] << " " << m_value; }
+  void dump_(std::ostream &os) const override { os << operandTypeToStr(getType()) << " " << m_value; }
 };
 
 }; // namespace koda

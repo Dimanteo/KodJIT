@@ -78,7 +78,7 @@ public:
   using NodeId = BasicBlock *;
   static std::string nodeToString(ProgramGraph &graph, NodeId node) {
     (void)graph;
-    return std::to_string(reinterpret_cast<uintptr_t>(node));
+    return std::to_string(reinterpret_cast<uint64_t>(node));
   }
 };
 

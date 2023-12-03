@@ -79,7 +79,7 @@ TEST(IRTests, branch_test) {
   verify_inst_sequence({INST_BRANCH}, bb);
   verify_inst_sequence({}, target);
 
-  dumpCFG("branch_test", graph);
+  dumpCFG("branch_test.dot", graph);
 }
 
 TEST(IRTests, cond_br_test) {
@@ -121,7 +121,7 @@ TEST(IRTests, cond_br_test) {
   verify_inst_sequence({INST_CONST, INST_BRANCH}, true_bb);
   verify_inst_sequence({INST_PHI, INST_CONST, INST_MUL}, epilogue);
 
-  dumpCFG("cond_br_test", prog);
+  dumpCFG("cond_br_test.dot", prog);
 }
 
 TEST(IRTests, factorial) {
@@ -161,7 +161,7 @@ TEST(IRTests, factorial) {
   res->addOption(entry_bb, res_init);
   res->addOption(loop_bb, res_loop);
 
-  dumpCFG("factorial", prog);
+  dumpCFG("factorial.dot", prog);
 }
 
 } // namespace koda
