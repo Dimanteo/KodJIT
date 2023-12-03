@@ -4,6 +4,7 @@
 #include <vector>
 
 #include <ostream>
+#include <sstream>
 
 namespace koda {
 
@@ -83,22 +84,29 @@ void visit_rpo(Graph &graph, typename GraphTraits<Graph>::NodeId entry, Visitor 
 }
 
 template <typename Graph>
-void print_dot(Graph &graph, typename GraphTraits<Graph>::NodeId entry, std::ostream &out_str) {
-  using Traits = PrintableGraphTraits<Graph>;
-  using BaseTraits = typename Traits::BaseTraits;
+struct GraphPrinter {
+  using Traits = GraphTraits<Graph>;
+  using PrintTraits = PrintableGraphTraits<Graph>;
 
-  out_str << "digraph G {\n";
-  auto print_visitor = [&out_str, &graph](typename Traits::NodeId node) {
-    out_str << Traits::nodeToString(graph, node) << "\n";
+  static std::string make_dot_graph(Graph &graph, typename Traits::NodeId entry) {
+    std::stringstream ss;
 
-    auto print_succ = [node, &out_str](typename Traits::NodeId succ) {
-      out_str << node << " -> " << succ << "\n";
+    auto print_visitor = [&ss, &graph](typename Traits::NodeId node) {
+      ss << PrintTraits::nodeToString(graph, node) << "\n";
+
+      auto print_succ = [node, &ss](typename Traits::NodeId succ) { ss << node << " -> " << succ << "\n"; };
+      std::for_each(Traits::succBegin(graph, node), Traits::succEnd(graph, node), print_succ);
     };
-    std::for_each(BaseTraits::succBegin(graph, node), BaseTraits::succEnd(graph, node), print_succ);
-  };
-  visit_dfs(graph, entry, print_visitor);
+    visit_dfs(graph, entry, print_visitor);
 
-  out_str << "}";
-}
+    return ss.str();
+  }
+
+  static void print_dot(Graph &graph, typename GraphTraits<Graph>::NodeId entry, std::ostream &out_str) {
+    out_str << "digraph G {\n";
+    out_str << make_dot_graph(graph, entry);
+    out_str << "}";
+  }
+};
 
 } // namespace koda

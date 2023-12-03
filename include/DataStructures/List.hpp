@@ -1,8 +1,7 @@
 #pragma once
 
 #include <cassert>
-#include <functional>
-#include <stddef.h>
+#include <iterator>
 #include <type_traits>
 
 namespace koda {
@@ -44,7 +43,7 @@ public:
   bool hasPrev() const { return !isNIL(m_prev); }
 };
 
-namespace detail {
+namespace detailList {
 
 template <class InNode> class IntrusiveListIterator final {
 
@@ -107,7 +106,7 @@ bool operator!=(IntrusiveListIterator<InNode> lhs, IntrusiveListIterator<InNode>
   return !(lhs == rhs);
 }
 
-} // namespace detail
+} // namespace detailList
 
 // Container for intrusive list nodes. InNode must be derived from IntrusiveListNode.
 //
@@ -130,8 +129,8 @@ private:
   void setTail(InNode *node) { m_tail = node; }
 
 public:
-  using iterator = detail::IntrusiveListIterator<InNode>;
-  using const_iterator = detail::IntrusiveListIterator<std::add_const_t<InNode>>;
+  using iterator = detailList::IntrusiveListIterator<InNode>;
+  using const_iterator = detailList::IntrusiveListIterator<std::add_const_t<InNode>>;
   using value_type = typename iterator::value_type;
   using pointer = typename iterator::pointer;
   using const_pointer = std::add_const_t<pointer>;
@@ -241,7 +240,7 @@ public:
       return;
     }
 
-    InNode *new_head = m_head->getNext();
+    auto &&new_head = m_head->getNext();
     m_head->setPrev(InNode::NIL_NODE());
     m_head->setNext(InNode::NIL_NODE());
     new_head->setPrev(InNode::NIL_NODE());
@@ -261,7 +260,7 @@ public:
       return;
     }
 
-    InNode *new_tail = m_tail->getPrev();
+    auto &&new_tail = m_tail->getPrev();
     m_tail->setPrev(InNode::NIL_NODE());
     m_tail->setNext(InNode::NIL_NODE());
     new_tail->setNext(InNode::NIL_NODE());

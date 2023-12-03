@@ -171,7 +171,7 @@ TEST(GraphTests, RPOForkJoin) {
   ASSERT_EQ(rpo.back(), 3);
 
   std::ofstream dot_log("RPOForkJoin.dot", std::ios_base::out);
-  print_dot(graph, 0, dot_log);
+  GraphPrinter<TestGraph>::print_dot(graph, 0, dot_log);
   dot_log.close();
 }
 

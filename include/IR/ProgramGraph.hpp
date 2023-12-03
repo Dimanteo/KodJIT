@@ -1,10 +1,10 @@
 #pragma once
 
 #include "IR/IROperand.hpp"
+#include <DataStructures/Graph.hpp>
 #include <IR/BasicBlock.hpp>
 #include <IR/Instruction.hpp>
 
-#include <functional>
 #include <memory>
 #include <vector>
 
@@ -26,6 +26,8 @@ public:
 class ProgramGraph final {
 public:
   using BasicBlockArena = std::vector<std::unique_ptr<BasicBlock>>;
+  using iterator = BasicBlockArena::iterator;
+  using BBPtr = std::unique_ptr<BasicBlock>;
 
 private:
   BasicBlockArena m_bb_arena{};
@@ -48,6 +50,8 @@ public:
     return inst_ptr;
   }
 
+  BasicBlock *getBB(bbid_t id) { return m_bb_arena[id].get(); }
+
   void setEntry(BasicBlock *bb) { m_entry = bb; }
 
   BasicBlock *getEntry() const { return m_entry; }
@@ -67,11 +71,37 @@ public:
 
   size_t getNumParams() const { return m_params.size(); }
 
-  // TODO: iterators
-  void for_each_block(std::function<void(BasicBlock &)> funct) const {
-    for (const auto &bb_ptr : m_bb_arena) {
-      funct(*bb_ptr.get());
-    }
+  iterator begin() { return m_bb_arena.begin(); }
+  iterator end() { return m_bb_arena.end(); }
+
+  // Printable graph traits
+  using NodeId = BasicBlock *;
+  static std::string nodeToString(ProgramGraph &graph, NodeId node) {
+    (void)graph;
+    return std::to_string(reinterpret_cast<uintptr_t>(node));
+  }
+};
+
+template <> struct GraphTraits<ProgramGraph> {
+  using NodeId = BasicBlock *;
+  using PredIterator = BasicBlock::PredIterator;
+  using SuccIterator = BasicBlock::SuccIterator;
+
+  static PredIterator predBegin([[maybe_unused]] ProgramGraph &owner, NodeId node) {
+    return node->predBegin();
+  }
+  static PredIterator predEnd(ProgramGraph &owner, NodeId node) {
+    (void)owner;
+    return node->predEnd();
+  }
+
+  static SuccIterator succBegin(ProgramGraph &owner, NodeId node) {
+    (void)owner;
+    return node->succBegin();
+  }
+  static SuccIterator succEnd(ProgramGraph &owner, NodeId node) {
+    (void)owner;
+    return node->succEnd();
   }
 };
 

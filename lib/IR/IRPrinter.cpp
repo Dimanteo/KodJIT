@@ -10,14 +10,14 @@ namespace koda {
 void IRPrinter::printProgGraph(ProgramGraph &graph) {
   m_out_stream << "digraph G {\n";
 
-  graph.for_each_block([this](BasicBlock &bb) {
-    auto id = bb.getID();
-    m_out_stream << id << "[shape=record,label=\"";
-    printBlock(bb);
+  auto bb_print = [this](ProgramGraph::BBPtr &bb) {
+    m_out_stream << bb.get() << "[shape=record,label=\"";
+    printBlock(*bb);
     m_out_stream << "\"];\n";
-    bb.for_each_succ(
-        [id, this](const BasicBlock &succ) { m_out_stream << id << " -> " << succ.getID() << ";\n"; });
-  });
+  };
+  std::for_each(graph.begin(), graph.end(), bb_print);
+
+  m_out_stream << GraphPrinter<ProgramGraph>::make_dot_graph(graph, graph.getEntry());
 
   m_out_stream << "}";
 }
