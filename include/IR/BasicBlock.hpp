@@ -64,7 +64,10 @@ public:
     instruction->setBB(this);
   }
 
-  Instruction *removeInstruction(Instruction *instruction);
+  Instruction *removeInstruction(Instruction *instruction) {
+    instruction->setBB(nullptr);
+    return m_instructions.remove(instruction);
+  }
 
   // Returns unconditional successor
   BasicBlock *getUncondSuccessor() const { return getSuccessor(UNCOND_IDX); }

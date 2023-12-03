@@ -9,7 +9,7 @@ namespace koda {
 using bbid_t = size_t;
 using instid_t = size_t;
 
-enum InstOpcode : uint8_t {
+enum InstOpcode : unsigned {
   INST_INVALID = 0,
   INST_ADD,
   INST_SUB,

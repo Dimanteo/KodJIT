@@ -116,17 +116,43 @@ public:
                 "Node type must be derived from intrusive node");
 
 private:
-  InNode *m_head = nullptr;
+  using BaseNode = IntrusiveListNode;
 
-  InNode *m_tail = nullptr;
+  BaseNode *m_head = nullptr;
 
-  void setHead(InNode &node) { m_head = &node; }
+  BaseNode *m_tail = nullptr;
 
-  void setHead(InNode *node) { m_head = node; }
+  void setHead(BaseNode &node) { m_head = &node; }
 
-  void setTail(InNode &node) { m_tail = &node; }
+  void setHead(BaseNode *node) { m_head = node; }
 
-  void setTail(InNode *node) { m_tail = node; }
+  void setTail(BaseNode &node) { m_tail = &node; }
+
+  void setTail(BaseNode *node) { m_tail = node; }
+
+  BaseNode *remove_impl(BaseNode &node) {
+    assert(!InNode::isNIL(node) && "Invalid node passed as argument");
+
+    if (!node.hasPrev()) {
+      removeHead();
+      return m_head;
+    }
+
+    if (!node.hasNext()) {
+      removeTail();
+      return m_tail;
+    }
+
+    auto next = node.getNext();
+    auto prev = node.getPrev();
+    next->setPrev(prev);
+    prev->setNext(next);
+
+    node.setPrev(InNode::NIL_NODE());
+    node.setNext(InNode::NIL_NODE());
+
+    return next;
+  }
 
 public:
   using iterator = detailList::IntrusiveListIterator<InNode>;
@@ -240,7 +266,7 @@ public:
       return;
     }
 
-    auto &&new_head = m_head->getNext();
+    BaseNode *new_head = m_head->getNext();
     m_head->setPrev(InNode::NIL_NODE());
     m_head->setNext(InNode::NIL_NODE());
     new_head->setPrev(InNode::NIL_NODE());
@@ -260,7 +286,7 @@ public:
       return;
     }
 
-    auto &&new_tail = m_tail->getPrev();
+    BaseNode *new_tail = m_tail->getPrev();
     m_tail->setPrev(InNode::NIL_NODE());
     m_tail->setNext(InNode::NIL_NODE());
     new_tail->setNext(InNode::NIL_NODE());
@@ -273,33 +299,11 @@ public:
 
   // Remove \p node from list.
   // \returns next node after removed one or NIL if node is last.
-  InNode *remove(InNode &node) {
-    assert(!InNode::isNIL(node) && "Invalid node passed as argument");
+  InNode *remove(InNode &node) { return reinterpret_cast<InNode *>(remove_impl(node)); }
 
-    if (!node.hasPrev()) {
-      removeHead();
-      return m_head;
-    }
+  InNode *getHead() const { return reinterpret_cast<InNode *>(m_head); }
 
-    if (!node.hasNext()) {
-      removeTail();
-      return m_tail;
-    }
-
-    auto next = node.getNext();
-    auto prev = node.getPrev();
-    next->setPrev(prev);
-    prev->setNext(next);
-
-    node.setPrev(InNode::NIL_NODE());
-    node.setNext(InNode::NIL_NODE());
-
-    return next;
-  }
-
-  InNode *getHead() const { return m_head; }
-
-  InNode *getTail() const { return m_tail; }
+  InNode *getTail() const { return reinterpret_cast<InNode *>(m_tail); }
 
   bool empty() const { return InNode::isNIL(m_head); }
 };
