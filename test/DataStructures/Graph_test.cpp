@@ -1,4 +1,5 @@
 #include <DataStructures/Graph.hpp>
+#include <DataStructures/DominatorsTree.hpp>
 
 #include <gtest/gtest.h>
 #include <set>
@@ -173,6 +174,43 @@ TEST(GraphTests, RPOForkJoin) {
   std::ofstream dot_log("RPOForkJoin.dot", std::ios_base::out);
   GraphPrinter<TestGraph>::print_dot(graph, 0, dot_log);
   dot_log.close();
+}
+
+TEST(DomTreeTests, domTreeSimple) {
+  constexpr size_t graph_size = 5;
+
+  TestGraph graph(graph_size);
+  graph.add_edge(4, 0);
+  graph.add_edge(0, 1);
+  graph.add_edge(0, 2);
+  graph.add_edge(1, 3);
+  graph.add_edge(2, 3);
+
+  DominatorTree<TestGraph> tree;
+  DominatorTreeBuilder<TestGraph> builder;
+  builder.build_tree(graph, 4, tree);
+
+  for (size_t i = 0; i < graph_size; i++) {
+    ASSERT_TRUE(tree.is_domination_computed(i));
+  }
+
+  ASSERT_TRUE(tree.is_dominator_of(4, 0));
+  ASSERT_TRUE(tree.is_dominator_of(0, 1));
+  ASSERT_TRUE(tree.is_dominator_of(0, 2));
+  ASSERT_TRUE(tree.is_dominator_of(0, 3));
+
+  ASSERT_FALSE(tree.is_dominator_of(1, 3));
+  ASSERT_FALSE(tree.is_dominator_of(2, 3));
+
+  ASSERT_FALSE(tree.is_dominator_of(2, 1));
+
+  std::set<size_t> doms;
+  for (auto &&dom = tree.dominated_by_begin(3); dom != tree.dominated_by_end(3); ++dom) {
+    doms.insert(*dom);
+  }
+  ASSERT_EQ(doms.size(), 2);
+  ASSERT_EQ(*doms.begin(), 0);
+  ASSERT_EQ(*++doms.begin(), 4);
 }
 
 } // namespace Tests

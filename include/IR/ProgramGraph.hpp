@@ -41,6 +41,9 @@ private:
 public:
   ProgramGraph() = default;
 
+  ProgramGraph(const ProgramGraph &) = delete;
+  ProgramGraph &operator=(const ProgramGraph &) = delete;
+
   BasicBlock *createBasicBlock();
 
   template <class InstT, typename... Args> InstT *createInstruction(Args &&...args) {

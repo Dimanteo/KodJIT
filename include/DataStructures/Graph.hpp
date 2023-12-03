@@ -1,3 +1,5 @@
+#pragma once
+
 #include <algorithm>
 #include <string>
 #include <unordered_set>
@@ -27,7 +29,7 @@ template <typename Graph> struct PrintableGraphTraits {
 };
 
 template <typename Graph, typename Visitor>
-void visit_dfs(Graph &graph, typename GraphTraits<Graph>::NodeId entry, Visitor visitor) {
+void visit_dfs_conditional(Graph &graph, typename GraphTraits<Graph>::NodeId entry, Visitor &&visitor) {
   using Traits = GraphTraits<Graph>;
 
   std::vector<typename Traits::NodeId> worklist;
@@ -40,8 +42,12 @@ void visit_dfs(Graph &graph, typename GraphTraits<Graph>::NodeId entry, Visitor 
     typename Traits::NodeId tail = worklist.back();
     worklist.pop_back();
 
-    visitor(tail);
+    bool visitor_res = visitor(tail);
     visited.insert(tail);
+
+    if (!visitor_res) {
+      continue;
+    }
 
     std::for_each(Traits::succBegin(graph, tail), Traits::succEnd(graph, tail),
                   [&worklist_inserter, &visited](typename Traits::NodeId node) {
@@ -52,7 +58,17 @@ void visit_dfs(Graph &graph, typename GraphTraits<Graph>::NodeId entry, Visitor 
 }
 
 template <typename Graph, typename Visitor>
-void visit_rpo(Graph &graph, typename GraphTraits<Graph>::NodeId entry, Visitor visitor) {
+void visit_dfs(Graph &graph, typename GraphTraits<Graph>::NodeId entry, Visitor &&visitor) {
+  using NodeId = typename GraphTraits<Graph>::NodeId;
+  auto forward_visitor = [visitor = std::forward<Visitor>(visitor)](NodeId node) {
+    visitor(node);
+    return true;
+  };
+  visit_dfs_conditional(graph, entry, forward_visitor);
+}
+
+template <typename Graph, typename Visitor>
+void visit_rpo(Graph &graph, typename GraphTraits<Graph>::NodeId entry, Visitor &&visitor) {
   using Traits = GraphTraits<Graph>;
 
   std::vector<typename Traits::NodeId> postorder;
@@ -80,7 +96,7 @@ void visit_rpo(Graph &graph, typename GraphTraits<Graph>::NodeId entry, Visitor 
     }
   }
 
-  std::for_each(postorder.rbegin(), postorder.rend(), visitor);
+  std::for_each(postorder.rbegin(), postorder.rend(), std::forward<Visitor>(visitor));
 }
 
 template <typename Graph> struct GraphPrinter {
