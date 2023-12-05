@@ -1,10 +1,10 @@
-#include <DataStructures/Graph.hpp>
 #include <DataStructures/DominatorsTree.hpp>
+#include <DataStructures/Graph.hpp>
 
+#include <fstream>
 #include <gtest/gtest.h>
 #include <set>
 #include <vector>
-#include <fstream>
 
 namespace koda {
 
@@ -15,14 +15,17 @@ class TestGraph {
 
   EdgeList m_preds;
   EdgeList m_succs;
+  size_t m_size;
 
 public:
-  TestGraph(size_t n_nodes) : m_preds(n_nodes), m_succs(n_nodes) {}
+  TestGraph(size_t n_nodes) : m_preds(n_nodes), m_succs(n_nodes), m_size(n_nodes) {}
 
   void add_edge(size_t from, size_t to) {
     m_succs[from].insert(to);
     m_preds[to].insert(from);
   }
+
+  size_t size() const { return m_size; }
 
   // Graph traits
   using NodeId = size_t;
@@ -43,6 +46,22 @@ public:
     return std::to_string(node);
   }
 };
+
+TEST(GraphTests, DFSLoop) {
+  TestGraph graph(2);
+  graph.add_edge(0, 1);
+  graph.add_edge(1, 1);
+
+  std::vector<size_t> path;
+  auto path_inserter = std::back_inserter(path);
+  auto visitor = [&path_inserter](size_t node) { *path_inserter = node; };
+
+  visit_dfs(graph, 0, visitor);
+
+  ASSERT_EQ(graph.size(), path.size());
+  ASSERT_EQ(path.front(), 0);
+  ASSERT_EQ(path.back(), 1);
+}
 
 TEST(GraphTests, DFSFork) {
   /*
@@ -141,6 +160,35 @@ TEST(GraphTests, DFSCycle) {
   }
 }
 
+TEST(GraphTests, RPOLongPath) {
+  /*
+    ┌───────────────────┐
+    │                   ▼
+  ┌───┐     ┌───┐     ┌───┐     ┌───┐
+  │ 0 │ ──▶ │ 2 │ ──▶ │ 1 │ ──▶ │ 3 │
+  └───┘     └───┘     └───┘     └───┘
+  */
+  constexpr size_t graph_size = 4;
+
+  TestGraph graph(graph_size);
+  graph.add_edge(0, 1);
+  graph.add_edge(0, 2);
+  graph.add_edge(1, 3);
+  graph.add_edge(2, 1);
+
+  std::vector<size_t> path;
+  auto path_inserter = std::back_inserter(path);
+  auto visitor = [&path_inserter](size_t node) { *path_inserter = node; };
+
+  visit_rpo(graph, 0, visitor);
+
+  std::vector<size_t> ref_path = {0, 2, 1, 3};
+  ASSERT_EQ(path.size(), ref_path.size());
+  for (size_t i = 0; i < path.size(); i++) {
+    ASSERT_EQ(path[i], ref_path[i]);
+  }
+}
+
 TEST(GraphTests, RPOForkJoin) {
   /*
   ┌───┐     ┌───┐     ┌───┐
@@ -211,6 +259,295 @@ TEST(DomTreeTests, domTreeSimple) {
   ASSERT_EQ(doms.size(), 2);
   ASSERT_EQ(*doms.begin(), 0);
   ASSERT_EQ(*++doms.begin(), 4);
+}
+
+TestGraph make_idom_graph(TestGraph &graph, DominatorTree<TestGraph> &tree) {
+  TestGraph dom_graph(graph.size());
+  for (size_t node = 1; node < graph.size(); node++) {
+    dom_graph.add_edge(tree.get_immediate_dom(node), node);
+  }
+  return dom_graph;
+}
+
+void dump_graph_and_dom_tree(TestGraph &graph, TestGraph &tree, std::string filename) {
+  std::ofstream dot_log(filename + ".dot", std::ios_base::out);
+  GraphPrinter<TestGraph>::print_dot(graph, 1, dot_log);
+  dot_log.close();
+
+  dot_log.open(filename + "_DomTree.dot", std::ios_base::out);
+  GraphPrinter<TestGraph>::print_dot(tree, 1, dot_log);
+  dot_log.close();
+}
+
+void compare_graphs(TestGraph &first, TestGraph &second, size_t entry) {
+  std::vector<size_t> first_path, second_path;
+
+  ASSERT_EQ(first.size(), second.size());
+
+  auto path_inserter = std::back_inserter(first_path);
+  auto visitor_f = [&path_inserter](size_t node) { *path_inserter = node; };
+  visit_dfs(first, entry, visitor_f);
+
+  path_inserter = std::back_inserter(second_path);
+  auto visitor_s = [&path_inserter](size_t node) { *path_inserter = node; };
+  visit_dfs(second, entry, visitor_s);
+
+  ASSERT_EQ(first_path.size(), second_path.size());
+  for (size_t i = entry; i < first.size(); ++i) {
+    ASSERT_EQ(first_path[i], second_path[i]);
+  }
+}
+
+TEST(DomTreeTests, domTreeExample1) {
+  /*
+            ┌───┐
+            │ 1 │
+            └───┘
+              │
+              │
+              ▼
+  ┌───┐     ┌───┐
+  │ 3 │ ◀── │ 2 │
+  └───┘     └───┘
+    │         │
+    │         │
+    │         ▼
+    │       ┌───┐     ┌───┐
+    │       │ 6 │ ──▶ │ 7 │
+    │       └───┘     └───┘
+    │         │         │
+    │         │         │
+    │         ▼         │
+    │       ┌───┐       │
+    │       │ 5 │       │
+    │       └───┘       │
+    │         │         │
+    │         │         │
+    │         ▼         │
+    │       ┌───┐       │
+    └─────▶ │ 4 │ ◀─────┘
+            └───┘
+  */
+  constexpr size_t graph_size = 8;
+
+  TestGraph graph(graph_size);
+  graph.add_edge(1, 2);
+
+  graph.add_edge(2, 3);
+  graph.add_edge(2, 6);
+
+  graph.add_edge(3, 4);
+
+  graph.add_edge(5, 4);
+
+  graph.add_edge(6, 5);
+  graph.add_edge(6, 7);
+
+  graph.add_edge(7, 4);
+
+  DominatorTree<TestGraph> tree;
+  DominatorTreeBuilder<TestGraph> dom_builder;
+  dom_builder.build_tree(graph, 1, tree);
+
+  auto idom_graph = make_idom_graph(graph, tree);
+
+  TestGraph ref_idom(graph_size);
+  ref_idom.add_edge(1, 2);
+  ref_idom.add_edge(2, 3);
+  ref_idom.add_edge(2, 4);
+  ref_idom.add_edge(2, 6);
+  ref_idom.add_edge(6, 5);
+  ref_idom.add_edge(6, 7);
+
+  compare_graphs(idom_graph, ref_idom, 1);
+  dump_graph_and_dom_tree(graph, idom_graph, "Example1");
+}
+
+TEST(DomTreeTests, domTreeExample2) {
+  /*
+          ┌────┐
+          │ 1  │
+          └────┘
+            │
+            │
+            ▼
+          ┌────┐
+  ┌─────▶ │ 2  │ ─┐
+  │       └────┘  │
+  │         │     │
+  │         │     │
+  │         ▼     │
+  │       ┌────┐  │
+  │       │ 4  │  │
+  │       └────┘  │
+  │         │     │
+  │         │     │
+  │         ▼     │
+  │       ┌────┐  │
+  │    ┌▶ │ 3  │ ◀┘
+  │    │  └────┘
+  │    │    │
+  │    │    │
+  │    │    ▼
+  │    │  ┌────┐
+  │    └─ │ 5  │
+  │       └────┘
+  │         │
+  │         │
+  │         ▼
+  │       ┌────┐
+  │       │ 6  │ ◀┐
+  │       └────┘  │
+  │         │     │
+  │         │     │
+  │         ▼     │
+  │       ┌────┐  │
+  │       │ 7  │ ─┘
+  │       └────┘
+  │         │
+  │         │
+  │         ▼
+┌───┐     ┌────┐
+│ 9 │ ◀── │ 8  │
+└───┘     └────┘
+            │
+            │
+            ▼
+          ┌────┐
+          │ 10 │
+          └────┘
+            │
+            │
+            ▼
+          ┌────┐
+          │ 11 │
+          └────┘
+  */
+  constexpr size_t graph_size = 12;
+
+  TestGraph graph(graph_size);
+
+  graph.add_edge(1, 2);
+
+  graph.add_edge(2, 3);
+  graph.add_edge(2, 4);
+
+  graph.add_edge(3, 5);
+
+  graph.add_edge(4, 3);
+
+  graph.add_edge(5, 3);
+  graph.add_edge(5, 6);
+
+  graph.add_edge(6, 7);
+
+  graph.add_edge(7, 6);
+
+  graph.add_edge(7, 8);
+
+  graph.add_edge(8, 9);
+  graph.add_edge(8, 10);
+
+  graph.add_edge(9, 2);
+
+  graph.add_edge(10, 11);
+
+  DominatorTree<TestGraph> tree;
+  DominatorTreeBuilder<TestGraph> dom_builder;
+  dom_builder.build_tree(graph, 1, tree);
+
+  auto idom_graph = make_idom_graph(graph, tree);
+
+  TestGraph ref_idom(graph_size);
+  ref_idom.add_edge(1, 2);
+  ref_idom.add_edge(2, 4);
+  ref_idom.add_edge(2, 3);
+  ref_idom.add_edge(3, 5);
+  ref_idom.add_edge(5, 6);
+  ref_idom.add_edge(6, 7);
+  ref_idom.add_edge(7, 8);
+  ref_idom.add_edge(8, 9);
+  ref_idom.add_edge(8, 10);
+  ref_idom.add_edge(10, 11);
+
+  compare_graphs(idom_graph, ref_idom, 1);
+  dump_graph_and_dom_tree(graph, idom_graph, "Example2");
+}
+
+TEST(DomTreeTests, domTreeExample3) {
+  /*
+
+       ┌────────────────────────┐
+       │                        │
+       │                 ┌───┐  │
+       │                 │ 1 │  │
+       │                 └───┘  │
+       │                   │    │
+       │                   │    │
+       │                   ▼    │
+     ┌───┐     ┌───┐     ┌───┐  │
+     │ 6 │ ◀── │ 5 │ ◀── │ 2 │ ◀┘
+     └───┘     └───┘     └───┘
+       │         │         │
+       │         │         │
+       ▼         │         ▼
+     ┌───┐       │       ┌───┐
+  ┌─ │ 8 │       │       │ 3 │ ◀┐
+  │  └───┘       │       └───┘  │
+  │    │         │         │    │
+  │    │         │         │    │
+  │    │         │         ▼    │
+  │    │         │       ┌───┐  │
+  │    │         └─────▶ │ 4 │  │
+  │    │                 └───┘  │
+  │    │                   │    │
+  │    │                   │    │
+  │    │                   ▼    │
+  │    │                 ┌───┐  │
+  │    └───────────────▶ │ 7 │ ─┘
+  │                      └───┘
+  │                        │
+  │                        │
+  │                        ▼
+  │                      ┌───┐
+  │                      │ i │
+  │                      └───┘
+  │                        ▲
+  └────────────────────────┘
+  */
+  TestGraph graph(10);
+  graph.add_edge(1, 2);
+  graph.add_edge(2, 5);
+  graph.add_edge(2, 3);
+  graph.add_edge(3, 4);
+  graph.add_edge(4, 7);
+  graph.add_edge(5, 4);
+  graph.add_edge(5, 6);
+  graph.add_edge(6, 8);
+  graph.add_edge(6, 2);
+  graph.add_edge(7, 9);
+  graph.add_edge(7, 3);
+  graph.add_edge(8, 7);
+  graph.add_edge(8, 9);
+
+  DominatorTree<TestGraph> tree;
+  DominatorTreeBuilder<TestGraph> dom_builder;
+  dom_builder.build_tree(graph, 1, tree);
+
+  auto idom_graph = make_idom_graph(graph, tree);
+
+  TestGraph ref_idom(graph.size());
+  ref_idom.add_edge(1, 2);
+  ref_idom.add_edge(2, 3);
+  ref_idom.add_edge(2, 4);
+  ref_idom.add_edge(2, 5);
+  ref_idom.add_edge(2, 7);
+  ref_idom.add_edge(2, 9);
+  ref_idom.add_edge(5, 6);
+  ref_idom.add_edge(6, 8);
+
+  compare_graphs(idom_graph, ref_idom, 1);
+  dump_graph_and_dom_tree(graph, idom_graph, "Example3");
 }
 
 } // namespace Tests

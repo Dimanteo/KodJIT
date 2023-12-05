@@ -1,6 +1,8 @@
 #pragma once
 
 #include <DataStructures/Graph.hpp>
+
+#include <cassert>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -8,7 +10,10 @@
 namespace koda {
 
 template <typename Graph> class DominatorTree final {
+public:
   using NodeId = typename GraphTraits<Graph>::NodeId;
+
+private:
   using DomNodeContainer = std::unordered_set<NodeId>;
 
   struct DomNode {
@@ -31,8 +36,23 @@ public:
     return dominated_nodes.find(dominated) != dominated_nodes.end();
   }
 
-  bool is_domination_computed(NodeId node) {
-    return m_tree.find(node) != m_tree.end();
+  bool is_domination_computed(NodeId node) { return m_tree.find(node) != m_tree.end(); }
+
+  NodeId get_immediate_dom(NodeId node) {
+    assert(is_domination_computed(node));
+
+    auto &&dominators = m_tree[node].m_preds;
+    if (dominators.empty()) {
+      return node;
+    }
+    NodeId imm_dom = *dominators.begin();
+    for (auto &&dom : dominators) {
+      if (is_dominator_of(imm_dom, dom)) {
+        imm_dom = dom;
+      }
+    }
+
+    return imm_dom;
   }
 
   iterator dominated_by_begin(NodeId node) { return m_tree[node].m_preds.begin(); }

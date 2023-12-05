@@ -42,6 +42,10 @@ void visit_dfs_conditional(Graph &graph, typename GraphTraits<Graph>::NodeId ent
     typename Traits::NodeId tail = worklist.back();
     worklist.pop_back();
 
+    if (visited.find(tail) != visited.end()) {
+      continue;
+    }
+
     bool visitor_res = visitor(tail);
     visited.insert(tail);
 
@@ -51,8 +55,9 @@ void visit_dfs_conditional(Graph &graph, typename GraphTraits<Graph>::NodeId ent
 
     std::for_each(Traits::succBegin(graph, tail), Traits::succEnd(graph, tail),
                   [&worklist_inserter, &visited](typename Traits::NodeId node) {
-                    if (visited.find(node) == visited.end())
+                    if (visited.find(node) == visited.end()) {
                       *worklist_inserter = node;
+                    }
                   });
   }
 }
@@ -73,7 +78,8 @@ void visit_rpo(Graph &graph, typename GraphTraits<Graph>::NodeId entry, Visitor 
 
   std::vector<typename Traits::NodeId> postorder;
   std::vector<typename Traits::NodeId> worklist;
-  std::unordered_set<typename Traits::NodeId> visited;
+  std::unordered_set<typename Traits::NodeId> entered;
+  std::unordered_set<typename Traits::NodeId> exited;
 
   auto post_inserter = std::back_inserter(postorder);
   auto worklist_inserter = std::back_inserter(worklist);
@@ -81,18 +87,23 @@ void visit_rpo(Graph &graph, typename GraphTraits<Graph>::NodeId entry, Visitor 
 
   while (!worklist.empty()) {
     typename Traits::NodeId tail = worklist.back();
-    visited.insert(tail);
+
+    entered.insert(tail);
 
     size_t worklist_sz = worklist.size();
     std::for_each(Traits::succBegin(graph, tail), Traits::succEnd(graph, tail),
-                  [&worklist_inserter, &visited](typename Traits::NodeId node) {
-                    if (visited.find(node) == visited.end())
+                  [&worklist_inserter, &entered](typename Traits::NodeId node) {
+                    if (entered.find(node) == entered.end()) {
                       *worklist_inserter = node;
+                    }
                   });
+
     if (worklist_sz == worklist.size()) {
-      // No new nodes added to worklist. Means DFS exiting this node.
+      if (exited.find(tail) == exited.end()) {
+        *post_inserter = tail;
+        exited.insert(tail);
+      }
       worklist.pop_back();
-      *post_inserter = tail;
     }
   }
 
