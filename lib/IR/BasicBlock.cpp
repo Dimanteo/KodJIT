@@ -4,14 +4,11 @@
 
 namespace koda {
 
-void BasicBlock::setCondSuccessors(BasicBlock *false_bb, BasicBlock *true_bb) {
-  setSuccessor(TRUE_IDX, true_bb);
-  setSuccessor(FALSE_IDX, false_bb);
+void BasicBlock::set_cond_successors(BasicBlock *false_bb, BasicBlock *true_bb) {
+  set_successor(TRUE_IDX, true_bb);
+  set_successor(FALSE_IDX, false_bb);
 }
 
-bool BasicBlock::hasSuccessor() const {
-  return !m_successors.empty();
-}
-
+bool BasicBlock::has_successor() const { return !m_successors.empty(); }
 
 } // namespace koda

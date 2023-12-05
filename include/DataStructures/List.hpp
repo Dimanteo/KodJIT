@@ -14,8 +14,8 @@ class IntrusiveListNode {
 public:
   constexpr static auto NIL_NODE() { return nullptr; };
 
-  static bool isNIL(const Node *node) { return node == NIL_NODE(); }
-  static bool isNIL(const Node &node) { return isNIL(&node); }
+  static bool is_nil(const Node *node) { return node == NIL_NODE(); }
+  static bool is_nil(const Node &node) { return is_nil(&node); }
 
 private:
   Node *m_prev = nullptr;
@@ -26,21 +26,21 @@ public:
 
   IntrusiveListNode() = default;
 
-  void setNext(Node &next) { setNext(&next); }
+  void set_next(Node &next) { set_next(&next); }
 
-  void setPrev(Node &prev) { setPrev(&prev); }
+  void set_prev(Node &prev) { set_prev(&prev); }
 
-  void setNext(Node *next) { m_next = next; }
+  void set_next(Node *next) { m_next = next; }
 
-  void setPrev(Node *prev) { m_prev = prev; }
+  void set_prev(Node *prev) { m_prev = prev; }
 
-  Node *getNext() const { return m_next; }
+  Node *get_next() const { return m_next; }
 
-  Node *getPrev() const { return m_prev; }
+  Node *get_prev() const { return m_prev; }
 
-  bool hasNext() const { return !isNIL(m_next); }
+  bool has_next() const { return !is_nil(m_next); }
 
-  bool hasPrev() const { return !isNIL(m_prev); }
+  bool has_prev() const { return !is_nil(m_prev); }
 };
 
 namespace detailList {
@@ -70,12 +70,12 @@ public:
   [[nodiscard]] reference operator*() const noexcept { return *static_cast<pointer>(m_node_ptr); }
 
   IntrusiveListIterator &operator++() noexcept {
-    m_node_ptr = static_cast<pointer>(m_node_ptr->getNext());
+    m_node_ptr = static_cast<pointer>(m_node_ptr->get_next());
     return *this;
   }
 
   IntrusiveListIterator &operator--() noexcept {
-    m_node_ptr = m_node_ptr->getPrev();
+    m_node_ptr = m_node_ptr->get_prev();
     return *this;
   }
 
@@ -122,34 +122,34 @@ private:
 
   BaseNode *m_tail = nullptr;
 
-  void setHead(BaseNode &node) { m_head = &node; }
+  void set_head(BaseNode &node) { m_head = &node; }
 
-  void setHead(BaseNode *node) { m_head = node; }
+  void set_head(BaseNode *node) { m_head = node; }
 
-  void setTail(BaseNode &node) { m_tail = &node; }
+  void set_tail(BaseNode &node) { m_tail = &node; }
 
-  void setTail(BaseNode *node) { m_tail = node; }
+  void set_tail(BaseNode *node) { m_tail = node; }
 
   BaseNode *remove_impl(BaseNode &node) {
-    assert(!InNode::isNIL(node) && "Invalid node passed as argument");
+    assert(!InNode::is_nil(node) && "Invalid node passed as argument");
 
-    if (!node.hasPrev()) {
-      removeHead();
+    if (!node.has_prev()) {
+      remove_head();
       return m_head;
     }
 
-    if (!node.hasNext()) {
-      removeTail();
+    if (!node.has_next()) {
+      remove_tail();
       return m_tail;
     }
 
-    auto next = node.getNext();
-    auto prev = node.getPrev();
-    next->setPrev(prev);
-    prev->setNext(next);
+    auto next = node.get_next();
+    auto prev = node.get_prev();
+    next->set_prev(prev);
+    prev->set_next(next);
 
-    node.setPrev(InNode::NIL_NODE());
-    node.setNext(InNode::NIL_NODE());
+    node.set_prev(InNode::NIL_NODE());
+    node.set_next(InNode::NIL_NODE());
 
     return next;
   }
@@ -163,134 +163,134 @@ public:
   using reference = typename iterator::reference;
   using const_reference = std::add_const_t<reference>;
 
-  iterator begin() noexcept { return iterator{getHead()}; }
+  iterator begin() noexcept { return iterator{get_head()}; }
   iterator end() noexcept { return iterator{static_cast<pointer>(InNode::NIL_NODE())}; }
 
-  const_iterator cbegin() const noexcept { return iterator{getHead()}; }
+  const_iterator cbegin() const noexcept { return iterator{get_head()}; }
   const_iterator cend() const noexcept { return iterator{static_cast<pointer>(InNode::NIL_NODE())}; }
 
-  void insertTail(InNode *node) {
-    assert(!InNode::isNIL(node) && "Invalid node passed as argument");
-    insertTail(*node);
+  void insert_tail(InNode *node) {
+    assert(!InNode::is_nil(node) && "Invalid node passed as argument");
+    insert_tail(*node);
   }
 
-  void insertTail(InNode &node) {
+  void insert_tail(InNode &node) {
     if (empty()) {
-      assert(InNode::isNIL(m_head) && "invalid value for head in empty list");
-      assert(InNode::isNIL(m_tail) && "invalid value for tail in empty list");
+      assert(InNode::is_nil(m_head) && "invalid value for head in empty list");
+      assert(InNode::is_nil(m_tail) && "invalid value for tail in empty list");
 
-      setHead(node);
-      setTail(node);
-      node.setNext(InNode::NIL_NODE());
-      node.setPrev(InNode::NIL_NODE());
+      set_head(node);
+      set_tail(node);
+      node.set_next(InNode::NIL_NODE());
+      node.set_prev(InNode::NIL_NODE());
       return;
     }
-    assert(!m_tail->hasNext() && "tail must be last in list");
+    assert(!m_tail->has_next() && "tail must be last in list");
 
-    m_tail->setNext(node);
-    node.setPrev(m_tail);
-    setTail(node);
+    m_tail->set_next(node);
+    node.set_prev(m_tail);
+    set_tail(node);
   }
 
-  void insertHead(InNode *node) {
-    assert(!InNode::isNIL(node) && "Invalid node passed as argument");
-    insertHead(*node);
+  void insert_head(InNode *node) {
+    assert(!InNode::is_nil(node) && "Invalid node passed as argument");
+    insert_head(*node);
   }
 
-  void insertHead(InNode &node) {
+  void insert_head(InNode &node) {
     if (empty()) {
-      assert(InNode::isNIL(m_head) && "invalid value for head in empty list");
-      assert(InNode::isNIL(m_tail) && "invalid value for tail in empty list");
+      assert(InNode::is_nil(m_head) && "invalid value for head in empty list");
+      assert(InNode::is_nil(m_tail) && "invalid value for tail in empty list");
 
-      setHead(node);
-      setTail(node);
-      node.setNext(InNode::NIL_NODE());
-      node.setPrev(InNode::NIL_NODE());
+      set_head(node);
+      set_tail(node);
+      node.set_next(InNode::NIL_NODE());
+      node.set_prev(InNode::NIL_NODE());
       return;
     }
-    assert(!m_head->hasPrev() && "head must be first in list");
+    assert(!m_head->has_prev() && "head must be first in list");
 
-    m_head->setPrev(node);
-    node.setNext(m_head);
-    setHead(node);
+    m_head->set_prev(node);
+    node.set_next(m_head);
+    set_head(node);
   }
 
-  void insertAfter(InNode *insertPoint, InNode *node) {
-    assert(!InNode::isNIL(insertPoint) && "Invalid insertion point");
-    assert(!InNode::isNIL(node) && "Invalid node passed as argument");
-    insertAfter(*insertPoint, *node);
+  void insert_after(InNode *insertPoint, InNode *node) {
+    assert(!InNode::is_nil(insertPoint) && "Invalid insertion point");
+    assert(!InNode::is_nil(node) && "Invalid node passed as argument");
+    insert_after(*insertPoint, *node);
   }
 
-  void insertAfter(InNode &insertPoint, InNode &node) {
-    if (!insertPoint.hasNext()) {
-      insertTail(node);
-      return;
-    }
-
-    InNode *next = insertPoint.getNext();
-    next->setPrev(node);
-    insertPoint.setNext(node);
-    node.setNext(next);
-    node.setPrev(insertPoint);
-  }
-
-  void insertBefore(InNode *insertPoint, InNode *node) {
-    assert(!InNode::isNIL(insertPoint) && "Invalid insertion point");
-    assert(!InNode::isNIL(node) && "Invalid node passed as argument");
-    insertBefore(*insertPoint, *node);
-  }
-
-  void insertBefore(InNode &insertPoint, InNode &node) {
-    if (!insertPoint.hasPrev()) {
-      insertHead(node);
+  void insert_after(InNode &insertPoint, InNode &node) {
+    if (!insertPoint.has_next()) {
+      insert_tail(node);
       return;
     }
 
-    InNode *prev = insertPoint.getPrev();
-    insertPoint.setPrev(node);
-    prev->setNext(node);
-    node.setNext(insertPoint);
-    node.setPrev(prev);
+    InNode *next = insertPoint.get_next();
+    next->set_prev(node);
+    insertPoint.set_next(node);
+    node.set_next(next);
+    node.set_prev(insertPoint);
   }
 
-  void removeHead() {
-    if (empty()) {
+  void insert_before(InNode *insertPoint, InNode *node) {
+    assert(!InNode::is_nil(insertPoint) && "Invalid insertion point");
+    assert(!InNode::is_nil(node) && "Invalid node passed as argument");
+    insert_before(*insertPoint, *node);
+  }
+
+  void insert_before(InNode &insertPoint, InNode &node) {
+    if (!insertPoint.has_prev()) {
+      insert_head(node);
       return;
     }
 
-    if (!m_head->hasNext()) {
-      m_head->setPrev(InNode::NIL_NODE());
-      m_head->setNext(InNode::NIL_NODE());
-      setHead(InNode::NIL_NODE());
-      setTail(InNode::NIL_NODE());
-      return;
-    }
-
-    BaseNode *new_head = m_head->getNext();
-    m_head->setPrev(InNode::NIL_NODE());
-    m_head->setNext(InNode::NIL_NODE());
-    new_head->setPrev(InNode::NIL_NODE());
-    setHead(new_head);
+    InNode *prev = insertPoint.get_prev();
+    insertPoint.set_prev(node);
+    prev->set_next(node);
+    node.set_next(insertPoint);
+    node.set_prev(prev);
   }
 
-  void removeTail() {
+  void remove_head() {
     if (empty()) {
       return;
     }
 
-    if (!m_tail->hasPrev()) {
-      m_tail->setPrev(InNode::NIL_NODE());
-      m_tail->setNext(InNode::NIL_NODE());
-      setHead(InNode::NIL_NODE());
-      setTail(InNode::NIL_NODE());
+    if (!m_head->has_next()) {
+      m_head->set_prev(InNode::NIL_NODE());
+      m_head->set_next(InNode::NIL_NODE());
+      set_head(InNode::NIL_NODE());
+      set_tail(InNode::NIL_NODE());
       return;
     }
 
-    BaseNode *new_tail = m_tail->getPrev();
-    m_tail->setPrev(InNode::NIL_NODE());
-    m_tail->setNext(InNode::NIL_NODE());
-    new_tail->setNext(InNode::NIL_NODE());
-    setTail(new_tail);
+    BaseNode *new_head = m_head->get_next();
+    m_head->set_prev(InNode::NIL_NODE());
+    m_head->set_next(InNode::NIL_NODE());
+    new_head->set_prev(InNode::NIL_NODE());
+    set_head(new_head);
+  }
+
+  void remove_tail() {
+    if (empty()) {
+      return;
+    }
+
+    if (!m_tail->has_prev()) {
+      m_tail->set_prev(InNode::NIL_NODE());
+      m_tail->set_next(InNode::NIL_NODE());
+      set_head(InNode::NIL_NODE());
+      set_tail(InNode::NIL_NODE());
+      return;
+    }
+
+    BaseNode *new_tail = m_tail->get_prev();
+    m_tail->set_prev(InNode::NIL_NODE());
+    m_tail->set_next(InNode::NIL_NODE());
+    new_tail->set_next(InNode::NIL_NODE());
+    set_tail(new_tail);
   }
 
   // Remove \p node from list.
@@ -301,11 +301,11 @@ public:
   // \returns next node after removed one or NIL if node is last.
   InNode *remove(InNode &node) { return reinterpret_cast<InNode *>(remove_impl(node)); }
 
-  InNode *getHead() const { return reinterpret_cast<InNode *>(m_head); }
+  InNode *get_head() const { return reinterpret_cast<InNode *>(m_head); }
 
-  InNode *getTail() const { return reinterpret_cast<InNode *>(m_tail); }
+  InNode *get_tail() const { return reinterpret_cast<InNode *>(m_tail); }
 
-  bool empty() const { return InNode::isNIL(m_head); }
+  bool empty() const { return InNode::is_nil(m_head); }
 };
 
 } // namespace koda

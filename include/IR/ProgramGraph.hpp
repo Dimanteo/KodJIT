@@ -19,8 +19,8 @@ class Parameter {
 public:
   Parameter(int index, OperandType type) : m_index(index), m_type(type) {}
 
-  size_t getIndex() const { return m_index; }
-  OperandType getType() const { return m_type; }
+  size_t get_index() const { return m_index; }
+  OperandType get_type() const { return m_type; }
 };
 
 class ProgramGraph final {
@@ -44,42 +44,42 @@ public:
   ProgramGraph(const ProgramGraph &) = delete;
   ProgramGraph &operator=(const ProgramGraph &) = delete;
 
-  BasicBlock *createBasicBlock();
+  BasicBlock *create_basic_block();
 
-  template <class InstT, typename... Args> InstT *createInstruction(Args &&...args) {
+  template <class InstT, typename... Args> InstT *create_instruction(Args &&...args) {
     instid_t id = m_inst_arena.size();
     auto inst_ptr = new InstT(id, std::forward<Args>(args)...);
     m_inst_arena.emplace_back(inst_ptr);
     return inst_ptr;
   }
 
-  BasicBlock *getBB(bbid_t id) { return m_bb_arena[id].get(); }
+  BasicBlock *get_bb(bbid_t id) { return m_bb_arena[id].get(); }
 
-  void setEntry(BasicBlock *bb) { m_entry = bb; }
+  void set_entry(BasicBlock *bb) { m_entry = bb; }
 
-  BasicBlock *getEntry() const { return m_entry; }
+  BasicBlock *get_entry() const { return m_entry; }
 
   // Create program parameter of given type.
   // Return index of that parameter
   //
-  size_t createParam(OperandType type) {
+  size_t create_param(OperandType type) {
     size_t idx = m_params.size();
     m_params.emplace_back(idx, type);
     return idx;
   }
 
-  void popBackParam() { m_params.pop_back(); }
+  void pop_back_param() { m_params.pop_back(); }
 
-  Parameter getParam(size_t idx) { return m_params[idx]; }
+  Parameter get_param(size_t idx) { return m_params[idx]; }
 
-  size_t getNumParams() const { return m_params.size(); }
+  size_t get_num_params() const { return m_params.size(); }
 
   iterator begin() { return m_bb_arena.begin(); }
   iterator end() { return m_bb_arena.end(); }
 
   // Printable graph traits
   using NodeId = BasicBlock *;
-  static std::string nodeToString(ProgramGraph &graph, NodeId node) {
+  static std::string node_to_string(ProgramGraph &graph, NodeId node) {
     (void)graph;
     return std::to_string(reinterpret_cast<uint64_t>(node));
   }
@@ -90,21 +90,21 @@ template <> struct GraphTraits<ProgramGraph> {
   using PredIterator = BasicBlock::PredIterator;
   using SuccIterator = BasicBlock::SuccIterator;
 
-  static PredIterator predBegin([[maybe_unused]] ProgramGraph &owner, NodeId node) {
-    return node->predBegin();
+  static PredIterator pred_begin([[maybe_unused]] ProgramGraph &owner, NodeId node) {
+    return node->pred_begin();
   }
-  static PredIterator predEnd(ProgramGraph &owner, NodeId node) {
+  static PredIterator pred_end(ProgramGraph &owner, NodeId node) {
     (void)owner;
-    return node->predEnd();
+    return node->pred_end();
   }
 
-  static SuccIterator succBegin(ProgramGraph &owner, NodeId node) {
+  static SuccIterator succ_begin(ProgramGraph &owner, NodeId node) {
     (void)owner;
-    return node->succBegin();
+    return node->succ_begin();
   }
-  static SuccIterator succEnd(ProgramGraph &owner, NodeId node) {
+  static SuccIterator succ_end(ProgramGraph &owner, NodeId node) {
     (void)owner;
-    return node->succEnd();
+    return node->succ_end();
   }
 };
 

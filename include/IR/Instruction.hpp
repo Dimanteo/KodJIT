@@ -32,25 +32,25 @@ protected:
 public:
   virtual ~Instruction() = default;
 
-  Instruction(instid_t id, InstOpcode opc) : m_id(id), m_opcode(opc), m_is_term(isTerminatorOpcode(opc)) {}
+  Instruction(instid_t id, InstOpcode opc) : m_id(id), m_opcode(opc), m_is_term(is_terminator_opcode(opc)) {}
 
   Instruction(const Instruction &) = delete;
   Instruction &operator=(const Instruction &) = delete;
 
-  instid_t getID() const { return m_id; }
+  instid_t get_id() const { return m_id; }
 
-  InstOpcode getOpcode() const { return m_opcode; };
+  InstOpcode get_opcode() const { return m_opcode; };
 
-  BasicBlock *getBB() const { return m_bblock; }
+  BasicBlock *get_bb() const { return m_bblock; }
 
-  void setBB(BasicBlock *bb) { m_bblock = bb; }
+  void set_bb(BasicBlock *bb) { m_bblock = bb; }
 
-  void addUser(Instruction *user) { m_users.push_back(user); }
+  void add_user(Instruction *user) { m_users.push_back(user); }
 
-  bool isTerminator() const { return m_is_term; }
+  bool is_terminator() const { return m_is_term; }
 
   void dump(std::ostream &os) const {
-    os << "i" << getID() << ": " << instOpcToStr(getOpcode()) << " ";
+    os << "i" << get_id() << ": " << inst_opc_to_str(get_opcode()) << " ";
     dump_(os);
   }
 };
@@ -58,9 +58,9 @@ public:
 struct BranchInstruction : public Instruction {
   BranchInstruction(instid_t id) : Instruction(id, INST_BRANCH) {}
 
-  BasicBlock *getTarget() const;
+  BasicBlock *get_target() const;
 
-  OperandType getType() const override { return OperandType::NONE; }
+  OperandType get_type() const override { return OperandType::NONE; }
 
 private:
   void dump_(std::ostream &os) const override;
@@ -75,9 +75,9 @@ public:
   BinaryOpInstructionBase(instid_t id, InstOpcode opc, Instruction *lhs, Instruction *rhs)
       : Instruction(id, opc), m_inputs{lhs, rhs} {}
 
-  Instruction *getLhs() const { return m_inputs[LHS]; }
+  Instruction *get_lhs() const { return m_inputs[LHS]; }
 
-  Instruction *getRhs() const { return m_inputs[RHS]; }
+  Instruction *get_rhs() const { return m_inputs[RHS]; }
 };
 
 class ConditionalBranchInstruction : public BinaryOpInstructionBase {
@@ -89,13 +89,13 @@ public:
   ConditionalBranchInstruction(instid_t id, CmpFlag flag, Instruction *lhs, Instruction *rhs)
       : BinaryOpInstructionBase(id, INST_COND_BR, lhs, rhs), m_flag(flag) {}
 
-  CmpFlag getFlag() const { return m_flag; }
+  CmpFlag get_flag() const { return m_flag; }
 
-  BasicBlock *getFalseBLock() const;
+  BasicBlock *get_false_block() const;
 
-  BasicBlock *getTrueBlock() const;
+  BasicBlock *get_true_block() const;
 
-  OperandType getType() const override { return OperandType::NONE; }
+  OperandType get_type() const override { return OperandType::NONE; }
 
 private:
   void dump_(std::ostream &os) const override;
@@ -108,7 +108,7 @@ public:
   ArithmeticInstruction(instid_t id, InstOpcode opc, OperandType type, Instruction *lhs, Instruction *rhs)
       : BinaryOpInstructionBase(id, opc, lhs, rhs), m_type(type) {}
 
-  OperandType getType() const override { return m_type; }
+  OperandType get_type() const override { return m_type; }
 
 private:
   void dump_(std::ostream &os) const override;
@@ -122,9 +122,9 @@ class PhiInstruction : public Instruction {
 public:
   PhiInstruction(instid_t id, OperandType type) : Instruction(id, INST_PHI), m_type(type) {}
 
-  void addOption(BasicBlock *incoming_bb, Instruction *value);
+  void add_option(BasicBlock *incoming_bb, Instruction *value);
 
-  OperandType getType() const override { return m_type; }
+  OperandType get_type() const override { return m_type; }
 
 private:
   void dump_(std::ostream &os) const override;
@@ -140,12 +140,12 @@ public:
 
   virtual ~LoadParam() = default;
 
-  OperandType getType() const override { return m_type; }
+  OperandType get_type() const override { return m_type; }
 
-  size_t getIndex() const { return m_index; }
+  size_t get_index() const { return m_index; }
 
 private:
-  void dump_(std::ostream &os) const override { os << operandTypeToStr(getType()) << m_index; }
+  void dump_(std::ostream &os) const override { os << operand_type_to_str(get_type()) << m_index; }
 };
 
 template <typename ValueTy> class LoadConstant : public Instruction {
@@ -158,12 +158,12 @@ public:
 
   virtual ~LoadConstant() = default;
 
-  OperandType getType() const override { return m_type; }
+  OperandType get_type() const override { return m_type; }
 
-  ValueTy getValue() const { return m_value; }
+  ValueTy get_value() const { return m_value; }
 
 private:
-  void dump_(std::ostream &os) const override { os << operandTypeToStr(getType()) << " " << m_value; }
+  void dump_(std::ostream &os) const override { os << operand_type_to_str(get_type()) << " " << m_value; }
 };
 
 }; // namespace koda

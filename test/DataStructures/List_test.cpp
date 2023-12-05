@@ -11,8 +11,8 @@ struct TestNode : public IntrusiveListNode {
   TestNode(int id) : IntrusiveListNode(), m_id(id){};
   virtual ~TestNode() = default;
 
-  TestNode *getNext() const { return static_cast<TestNode *>(IntrusiveListNode::getNext()); }
-  TestNode *getPrev() const { return static_cast<TestNode *>(IntrusiveListNode::getPrev()); }
+  TestNode *get_next() const { return static_cast<TestNode *>(IntrusiveListNode::get_next()); }
+  TestNode *get_prev() const { return static_cast<TestNode *>(IntrusiveListNode::get_prev()); }
 };
 
 std::vector<TestNode> makeNodes(size_t sz) {
@@ -23,7 +23,7 @@ std::vector<TestNode> makeNodes(size_t sz) {
   return storage;
 }
 
-TEST(ListTests, listinsertTail) {
+TEST(ListTests, list_insert_tail) {
   IntrusiveList<TestNode> list;
   std::vector<TestNode> storage = makeNodes(10);
 
@@ -31,26 +31,26 @@ TEST(ListTests, listinsertTail) {
 
   for (size_t i = 0; i < storage.size(); ++i) {
     TestNode &node = storage[i];
-    TestNode *old_tail = list.getTail();
-    list.insertTail(node);
+    TestNode *old_tail = list.get_tail();
+    list.insert_tail(node);
 
     ASSERT_FALSE(list.empty());
 
-    ASSERT_EQ(node.getPrev(), old_tail);
-    ASSERT_FALSE(node.hasNext());
+    ASSERT_EQ(node.get_prev(), old_tail);
+    ASSERT_FALSE(node.has_next());
     if (i == 0) {
-      ASSERT_FALSE(node.hasPrev());
+      ASSERT_FALSE(node.has_prev());
     } else {
-      ASSERT_TRUE(node.hasPrev());
-      ASSERT_TRUE(old_tail->hasNext());
-      ASSERT_EQ(old_tail->getNext(), &node);
+      ASSERT_TRUE(node.has_prev());
+      ASSERT_TRUE(old_tail->has_next());
+      ASSERT_EQ(old_tail->get_next(), &node);
     }
 
-    ASSERT_EQ(list.getHead(), &storage[0]);
-    ASSERT_EQ(list.getTail(), &node);
+    ASSERT_EQ(list.get_head(), &storage[0]);
+    ASSERT_EQ(list.get_tail(), &node);
   }
 
-  ASSERT_EQ(&storage[0], list.getHead());
+  ASSERT_EQ(&storage[0], list.get_head());
 
   size_t list_size = 0;
   for ([[maybe_unused]] auto &&node : list) {
@@ -59,7 +59,7 @@ TEST(ListTests, listinsertTail) {
   ASSERT_EQ(list_size, storage.size());
 }
 
-TEST(ListTests, listinsertHead) {
+TEST(ListTests, list_insert_head) {
   std::vector<TestNode> storage = makeNodes(10);
   IntrusiveList<TestNode> list;
 
@@ -67,26 +67,26 @@ TEST(ListTests, listinsertHead) {
 
   for (size_t i = 0; i < storage.size(); ++i) {
     TestNode *node = &storage[i];
-    TestNode *old_head = list.getHead();
-    list.insertHead(node);
+    TestNode *old_head = list.get_head();
+    list.insert_head(node);
 
     ASSERT_FALSE(list.empty());
 
-    ASSERT_EQ(node->getNext(), old_head);
-    ASSERT_FALSE(node->hasPrev());
+    ASSERT_EQ(node->get_next(), old_head);
+    ASSERT_FALSE(node->has_prev());
     if (i == 0) {
-      ASSERT_FALSE(node->hasNext());
+      ASSERT_FALSE(node->has_next());
     } else {
-      ASSERT_TRUE(node->hasNext());
-      ASSERT_TRUE(old_head->hasPrev());
-      ASSERT_EQ(old_head->getPrev(), node);
+      ASSERT_TRUE(node->has_next());
+      ASSERT_TRUE(old_head->has_prev());
+      ASSERT_EQ(old_head->get_prev(), node);
     }
 
-    ASSERT_EQ(list.getTail(), &storage[0]);
-    ASSERT_EQ(list.getHead(), node);
+    ASSERT_EQ(list.get_tail(), &storage[0]);
+    ASSERT_EQ(list.get_head(), node);
   }
 
-  ASSERT_EQ(&storage[0], list.getTail());
+  ASSERT_EQ(&storage[0], list.get_tail());
 
   size_t list_size = 0;
   for ([[maybe_unused]] auto &&node : list) {
@@ -96,23 +96,23 @@ TEST(ListTests, listinsertHead) {
   ASSERT_EQ(list_size, storage.size());
 }
 
-TEST(ListTests, insertAfter) {
+TEST(ListTests, insert_after) {
   auto storage = makeNodes(3);
   IntrusiveList<TestNode> list;
 
-  list.insertTail(storage[0]);
-  ASSERT_EQ(list.getHead()->m_id, storage[0].m_id);
+  list.insert_tail(storage[0]);
+  ASSERT_EQ(list.get_head()->m_id, storage[0].m_id);
 
-  list.insertAfter(*list.getHead(), storage[1]);
-  ASSERT_EQ(list.getTail()->m_id, storage[1].m_id);
-  ASSERT_EQ(list.getHead()->getNext()->m_id, storage[1].m_id);
-  ASSERT_EQ(list.getHead()->getNext(), list.getTail());
-  ASSERT_EQ(list.getTail()->getPrev(), list.getHead());
+  list.insert_after(*list.get_head(), storage[1]);
+  ASSERT_EQ(list.get_tail()->m_id, storage[1].m_id);
+  ASSERT_EQ(list.get_head()->get_next()->m_id, storage[1].m_id);
+  ASSERT_EQ(list.get_head()->get_next(), list.get_tail());
+  ASSERT_EQ(list.get_tail()->get_prev(), list.get_head());
 
-  list.insertAfter(list.getHead(), &storage[2]);
+  list.insert_after(list.get_head(), &storage[2]);
   const auto id = storage[2].m_id;
-  ASSERT_EQ(list.getHead()->getNext()->m_id, id);
-  ASSERT_EQ(list.getTail()->getPrev()->m_id, id);
+  ASSERT_EQ(list.get_head()->get_next()->m_id, id);
+  ASSERT_EQ(list.get_tail()->get_prev()->m_id, id);
 
   std::vector<int> order;
   std::vector<int> gold_order = {1, 3, 2};
@@ -127,23 +127,23 @@ TEST(ListTests, insertAfter) {
   }
 }
 
-TEST(ListTests, insertBefore) {
+TEST(ListTests, insert_before) {
   auto storage = makeNodes(3);
   IntrusiveList<TestNode> list;
 
-  list.insertHead(storage[0]);
-  ASSERT_EQ(list.getTail()->m_id, storage[0].m_id);
+  list.insert_head(storage[0]);
+  ASSERT_EQ(list.get_tail()->m_id, storage[0].m_id);
 
-  list.insertBefore(*list.getHead(), storage[1]);
-  ASSERT_EQ(list.getHead()->m_id, storage[1].m_id);
-  ASSERT_EQ(list.getTail()->getPrev()->m_id, storage[1].m_id);
-  ASSERT_EQ(list.getHead()->getNext(), list.getTail());
-  ASSERT_EQ(list.getTail()->getPrev(), list.getHead());
+  list.insert_before(*list.get_head(), storage[1]);
+  ASSERT_EQ(list.get_head()->m_id, storage[1].m_id);
+  ASSERT_EQ(list.get_tail()->get_prev()->m_id, storage[1].m_id);
+  ASSERT_EQ(list.get_head()->get_next(), list.get_tail());
+  ASSERT_EQ(list.get_tail()->get_prev(), list.get_head());
 
-  list.insertBefore(list.getTail(), &storage[2]);
+  list.insert_before(list.get_tail(), &storage[2]);
   const auto id = storage[2].m_id;
-  ASSERT_EQ(list.getHead()->getNext()->m_id, id);
-  ASSERT_EQ(list.getTail()->getPrev()->m_id, id);
+  ASSERT_EQ(list.get_head()->get_next()->m_id, id);
+  ASSERT_EQ(list.get_tail()->get_prev()->m_id, id);
 
   std::vector<int> order;
   std::vector<int> gold_order = {2, 3, 1};
@@ -162,19 +162,19 @@ TEST(ListTests, remove) {
   std::vector<TestNode> storage = makeNodes(3);
   IntrusiveList<TestNode> list;
   for (auto &&node : storage) {
-    list.insertTail(node);
+    list.insert_tail(node);
   }
-  TestNode *removed_node = list.getHead()->getNext();
+  TestNode *removed_node = list.get_head()->get_next();
   list.remove(removed_node);
-  ASSERT_EQ(list.getHead()->getNext(), list.getTail());
-  ASSERT_EQ(list.getTail()->getPrev(), list.getHead());
+  ASSERT_EQ(list.get_head()->get_next(), list.get_tail());
+  ASSERT_EQ(list.get_tail()->get_prev(), list.get_head());
 
   // Covers removeTail()
-  list.remove(list.getTail());
-  ASSERT_EQ(list.getHead(), list.getTail());
+  list.remove(list.get_tail());
+  ASSERT_EQ(list.get_head(), list.get_tail());
 
   // Covers removeHead()
-  list.remove(list.getHead());
+  list.remove(list.get_head());
   ASSERT_TRUE(list.empty());
 }
 

@@ -5,7 +5,6 @@
 #include <IR/IRTypes.hpp>
 #include <IR/Instruction.hpp>
 
-#include <array>
 #include <vector>
 
 namespace koda {
@@ -36,65 +35,65 @@ private:
 
   enum SuccessorIdx : unsigned { FALSE_IDX = 0, UNCOND_IDX = 0, TRUE_IDX = 1 };
 
-  BasicBlock *getSuccessor(SuccessorIdx idx) const {
+  BasicBlock *get_successor(SuccessorIdx idx) const {
     if (idx >= m_successors.size())
       return nullptr;
     return m_successors[idx];
   }
 
-  void setSuccessor(SuccessorIdx idx, BasicBlock *succ) {
+  void set_successor(SuccessorIdx idx, BasicBlock *succ) {
     if (idx >= m_successors.size()) {
       m_successors.resize(idx + 1);
     }
     m_successors[idx] = succ;
-    succ->addPredecessor(this);
+    succ->add_predecessor(this);
   }
 
-  void setFalseSuccessor(BasicBlock *bb) { m_successors[FALSE_IDX] = bb; }
+  void set_false_successor(BasicBlock *bb) { m_successors[FALSE_IDX] = bb; }
 
-  void setTrueSuccessor(BasicBlock *bb) { m_successors[TRUE_IDX] = bb; }
+  void set_true_successor(BasicBlock *bb) { m_successors[TRUE_IDX] = bb; }
 
 public:
   BasicBlock(bbid_t id, ProgramGraph &graph) : m_id(id), m_graph(&graph) {}
 
-  bbid_t getID() const { return m_id; }
+  bbid_t get_id() const { return m_id; }
 
-  void addInstruction(Instruction *instruction) {
-    m_instructions.insertTail(instruction);
-    instruction->setBB(this);
+  void add_instruction(Instruction *instruction) {
+    m_instructions.insert_tail(instruction);
+    instruction->set_bb(this);
   }
 
-  Instruction *removeInstruction(Instruction *instruction) {
-    instruction->setBB(nullptr);
+  Instruction *remove_instruction(Instruction *instruction) {
+    instruction->set_bb(nullptr);
     return m_instructions.remove(instruction);
   }
 
   // Returns unconditional successor
-  BasicBlock *getUncondSuccessor() const { return getSuccessor(UNCOND_IDX); }
+  BasicBlock *get_uncond_successor() const { return get_successor(UNCOND_IDX); }
 
-  BasicBlock *getFalseSuccessor() const { return getSuccessor(FALSE_IDX); }
+  BasicBlock *get_false_successor() const { return get_successor(FALSE_IDX); }
 
-  BasicBlock *getTrueSuccessor() const { return getSuccessor(TRUE_IDX); }
+  BasicBlock *get_true_successor() const { return get_successor(TRUE_IDX); }
 
-  void setUncondSuccessor(BasicBlock *bb) { setSuccessor(UNCOND_IDX, bb); }
+  void set_uncond_successor(BasicBlock *bb) { set_successor(UNCOND_IDX, bb); }
 
-  void setCondSuccessors(BasicBlock *false_bb, BasicBlock *true_bb);
+  void set_cond_successors(BasicBlock *false_bb, BasicBlock *true_bb);
 
-  bool hasSuccessor() const;
+  bool has_successor() const;
 
-  void addPredecessor(BasicBlock *pred) { m_predecessors.push_back(pred); }
+  void add_predecessor(BasicBlock *pred) { m_predecessors.push_back(pred); }
 
-  OperandType getType() const override { return OperandType::LABEL; }
+  OperandType get_type() const override { return OperandType::LABEL; }
 
   // Basic block iterators
   iterator begin() noexcept { return m_instructions.begin(); }
   iterator end() noexcept { return m_instructions.end(); }
 
-  SuccIterator succBegin() { return m_successors.begin(); }
-  SuccIterator succEnd() { return m_successors.end(); }
+  SuccIterator succ_begin() { return m_successors.begin(); }
+  SuccIterator succ_end() { return m_successors.end(); }
 
-  PredIterator predBegin() { return m_predecessors.begin(); }
-  PredIterator predEnd() { return m_predecessors.end(); }
+  PredIterator pred_begin() { return m_predecessors.begin(); }
+  PredIterator pred_end() { return m_predecessors.end(); }
 };
 
 } // namespace koda

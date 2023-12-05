@@ -14,14 +14,14 @@ namespace koda {
 void dumpCFG(const char *test_name, ProgramGraph &prog) {
   std::ofstream dot_log(test_name, std::ios_base::out);
   IRPrinter printer(dot_log);
-  printer.printProgGraph(prog);
+  printer.print_prog_graph(prog);
   dot_log.close();
 }
 
 void verify_inst_sequence(const std::vector<InstOpcode> &sequence, BasicBlock *bb) {
   size_t i = 0;
   for (auto inst_it = bb->begin(), inst_end = bb->end(); inst_it != inst_end; ++inst_it) {
-    ASSERT_EQ(inst_it->getOpcode(), sequence[i]);
+    ASSERT_EQ(inst_it->get_opcode(), sequence[i]);
     i++;
   }
   ASSERT_EQ(i, sequence.size());
@@ -30,20 +30,20 @@ void verify_inst_sequence(const std::vector<InstOpcode> &sequence, BasicBlock *b
 TEST(IRTests, empty_prog_test) {
   ProgramGraph graph;
   IRBuilder builder(graph);
-  BasicBlock *bb = graph.createBasicBlock();
-  builder.setEntryPoint(bb);
-  builder.setInsertPoint(bb);
+  BasicBlock *bb = graph.create_basic_block();
+  builder.set_entry_point(bb);
+  builder.set_insert_point(bb);
 }
 
 TEST(IRTests, remove_test) {
   ProgramGraph graph;
   IRBuilder builder(graph);
-  BasicBlock *bb = graph.createBasicBlock();
-  builder.setEntryPoint(bb);
-  builder.setInsertPoint(bb);
+  BasicBlock *bb = graph.create_basic_block();
+  builder.set_entry_point(bb);
+  builder.set_insert_point(bb);
 
-  auto inst = builder.createIntConstant(42);
-  bb->removeInstruction(inst);
+  auto inst = builder.create_int_constant(42);
+  bb->remove_instruction(inst);
   verify_inst_sequence({}, bb);
 }
 
@@ -51,15 +51,15 @@ TEST(IRTests, add_test) {
   ProgramGraph graph;
   IRBuilder builder(graph);
 
-  BasicBlock *bb = graph.createBasicBlock();
-  builder.setEntryPoint(bb);
-  builder.setInsertPoint(bb);
+  BasicBlock *bb = graph.create_basic_block();
+  builder.set_entry_point(bb);
+  builder.set_insert_point(bb);
 
-  size_t par_idx = graph.createParam(OperandType::INTEGER);
+  size_t par_idx = graph.create_param(OperandType::INTEGER);
 
-  auto param = builder.createParamLoad(par_idx);
+  auto param = builder.create_param_load(par_idx);
 
-  builder.createIAdd(builder.createIntConstant(42), param);
+  builder.create_iadd(builder.create_int_constant(42), param);
 
   verify_inst_sequence({INST_PARAM, INST_CONST, INST_ADD}, bb);
 }
@@ -68,13 +68,13 @@ TEST(IRTests, branch_test) {
   ProgramGraph graph;
   IRBuilder builder(graph);
 
-  BasicBlock *bb = graph.createBasicBlock();
-  BasicBlock *target = graph.createBasicBlock();
+  BasicBlock *bb = graph.create_basic_block();
+  BasicBlock *target = graph.create_basic_block();
 
-  builder.setEntryPoint(bb);
-  builder.setInsertPoint(bb);
+  builder.set_entry_point(bb);
+  builder.set_insert_point(bb);
 
-  builder.createBranch(target);
+  builder.create_branch(target);
 
   verify_inst_sequence({INST_BRANCH}, bb);
   verify_inst_sequence({}, target);
@@ -86,35 +86,35 @@ TEST(IRTests, cond_br_test) {
   ProgramGraph prog;
   IRBuilder builder(prog);
 
-  BasicBlock *entry = prog.createBasicBlock();
-  builder.setEntryPoint(entry);
-  builder.setInsertPoint(entry);
+  BasicBlock *entry = prog.create_basic_block();
+  builder.set_entry_point(entry);
+  builder.set_insert_point(entry);
 
-  BasicBlock *false_bb = prog.createBasicBlock();
-  BasicBlock *true_bb = prog.createBasicBlock();
-  BasicBlock *epilogue = prog.createBasicBlock();
+  BasicBlock *false_bb = prog.create_basic_block();
+  BasicBlock *true_bb = prog.create_basic_block();
+  BasicBlock *epilogue = prog.create_basic_block();
 
-  auto par_lhs = prog.createParam(OperandType::INTEGER);
-  auto par_rhs = prog.createParam(OperandType::INTEGER);
+  auto par_lhs = prog.create_param(OperandType::INTEGER);
+  auto par_rhs = prog.create_param(OperandType::INTEGER);
 
-  auto lhs = builder.createParamLoad(par_lhs);
-  auto rhs = builder.createParamLoad(par_rhs);
+  auto lhs = builder.create_param_load(par_lhs);
+  auto rhs = builder.create_param_load(par_rhs);
 
-  builder.createConditionalBranch(CMP_EQ, false_bb, true_bb, lhs, rhs);
+  builder.create_conditional_branch(CMP_EQ, false_bb, true_bb, lhs, rhs);
 
-  builder.setInsertPoint(false_bb);
-  auto false_val = builder.createIntConstant(2);
-  builder.createBranch(epilogue);
+  builder.set_insert_point(false_bb);
+  auto false_val = builder.create_int_constant(2);
+  builder.create_branch(epilogue);
 
-  builder.setInsertPoint(true_bb);
-  auto true_val = builder.createIntConstant(3);
-  builder.createBranch(epilogue);
+  builder.set_insert_point(true_bb);
+  auto true_val = builder.create_int_constant(3);
+  builder.create_branch(epilogue);
 
-  builder.setInsertPoint(epilogue);
-  auto phi = builder.createPHI(OperandType::INTEGER);
-  phi->addOption(false_bb, false_val);
-  phi->addOption(true_bb, true_val);
-  builder.createIMul(builder.createIntConstant(5), phi);
+  builder.set_insert_point(epilogue);
+  auto phi = builder.create_phi(OperandType::INTEGER);
+  phi->add_option(false_bb, false_val);
+  phi->add_option(true_bb, true_val);
+  builder.create_imul(builder.create_int_constant(5), phi);
 
   verify_inst_sequence({INST_PARAM, INST_PARAM, INST_COND_BR}, entry);
   verify_inst_sequence({INST_CONST, INST_BRANCH}, false_bb);
@@ -128,38 +128,38 @@ TEST(IRTests, factorial) {
   ProgramGraph prog;
   IRBuilder builder(prog);
 
-  auto param_N = prog.createParam(OperandType::INTEGER);
-  auto entry_bb = prog.createBasicBlock();
-  auto loop_head_bb = prog.createBasicBlock();
-  auto loop_bb = prog.createBasicBlock();
-  auto done_bb = prog.createBasicBlock();
+  auto param_N = prog.create_param(OperandType::INTEGER);
+  auto entry_bb = prog.create_basic_block();
+  auto loop_head_bb = prog.create_basic_block();
+  auto loop_bb = prog.create_basic_block();
+  auto done_bb = prog.create_basic_block();
 
-  builder.setEntryPoint(entry_bb);
-  builder.setInsertPoint(entry_bb);
+  builder.set_entry_point(entry_bb);
+  builder.set_insert_point(entry_bb);
 
-  auto res_init = builder.createIntConstant(1);
-  auto iter_init = builder.createIntConstant(2);
-  auto N = builder.createParamLoad(param_N);
+  auto res_init = builder.create_int_constant(1);
+  auto iter_init = builder.create_int_constant(2);
+  auto N = builder.create_param_load(param_N);
 
-  builder.createBranch(loop_head_bb);
-  builder.setInsertPoint(loop_head_bb);
+  builder.create_branch(loop_head_bb);
+  builder.set_insert_point(loop_head_bb);
 
-  auto iter = builder.createPHI(OperandType::INTEGER);
-  auto res = builder.createPHI(OperandType::INTEGER);
-  builder.createConditionalBranch(CmpFlag::CMP_G, loop_bb, done_bb, iter, N);
+  auto iter = builder.create_phi(OperandType::INTEGER);
+  auto res = builder.create_phi(OperandType::INTEGER);
+  builder.create_conditional_branch(CmpFlag::CMP_G, loop_bb, done_bb, iter, N);
 
-  builder.setInsertPoint(loop_bb);
+  builder.set_insert_point(loop_bb);
 
-  auto res_loop = builder.createIMul(res, iter);
+  auto res_loop = builder.create_imul(res, iter);
 
-  auto iter_loop = builder.createIAdd(iter, builder.createIntConstant(1));
-  builder.createBranch(loop_head_bb);
+  auto iter_loop = builder.create_iadd(iter, builder.create_int_constant(1));
+  builder.create_branch(loop_head_bb);
 
-  iter->addOption(entry_bb, iter_init);
-  iter->addOption(loop_bb, iter_loop);
+  iter->add_option(entry_bb, iter_init);
+  iter->add_option(loop_bb, iter_loop);
 
-  res->addOption(entry_bb, res_init);
-  res->addOption(loop_bb, res_loop);
+  res->add_option(entry_bb, res_init);
+  res->add_option(loop_bb, res_loop);
 
   dumpCFG("factorial.dot", prog);
 }

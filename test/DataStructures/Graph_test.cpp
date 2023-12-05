@@ -32,16 +32,16 @@ public:
   using PredIterator = std::set<size_t>::iterator;
   using SuccIterator = std::set<size_t>::iterator;
 
-  static PredIterator predBegin(TestGraph &this_, NodeId node) { return this_.m_preds[node].begin(); }
+  static PredIterator pred_begin(TestGraph &this_, NodeId node) { return this_.m_preds[node].begin(); }
 
-  static PredIterator predEnd(TestGraph &this_, NodeId node) { return this_.m_preds[node].end(); }
+  static PredIterator pred_end(TestGraph &this_, NodeId node) { return this_.m_preds[node].end(); }
 
-  static SuccIterator succBegin(TestGraph &this_, NodeId node) { return this_.m_succs[node].begin(); }
+  static SuccIterator succ_begin(TestGraph &this_, NodeId node) { return this_.m_succs[node].begin(); }
 
-  static SuccIterator succEnd(TestGraph &this_, NodeId node) { return this_.m_succs[node].end(); }
+  static SuccIterator succ_end(TestGraph &this_, NodeId node) { return this_.m_succs[node].end(); }
 
   // Printable graph traits
-  static std::string nodeToString(TestGraph &this_, NodeId node) {
+  static std::string node_to_string(TestGraph &this_, NodeId node) {
     (void)this_;
     return std::to_string(node);
   }
@@ -83,7 +83,7 @@ TEST(GraphTests, DFSFork) {
   std::vector<size_t> reference_path;
   auto reference_inserter = std::back_inserter(reference_path);
   *reference_inserter = 0;
-  std::for_each(TestGraph::succBegin(graph, 0), TestGraph::succEnd(graph, 0),
+  std::for_each(TestGraph::succ_begin(graph, 0), TestGraph::succ_end(graph, 0),
                 [&reference_inserter](size_t node) { *reference_inserter = node; });
 
   std::vector<size_t> path;

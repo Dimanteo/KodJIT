@@ -15,17 +15,17 @@ template <typename Graph> struct GraphTraits {
   using PredIterator = typename Graph::PredIterator;
   using SuccIterator = typename Graph::SuccIterator;
 
-  static PredIterator predBegin(Graph &owner, NodeId node) { return Graph::predBegin(owner, node); }
-  static PredIterator predEnd(Graph &owner, NodeId node) { return Graph::predEnd(owner, node); }
+  static PredIterator pred_begin(Graph &owner, NodeId node) { return Graph::pred_begin(owner, node); }
+  static PredIterator pred_end(Graph &owner, NodeId node) { return Graph::pred_end(owner, node); }
 
-  static SuccIterator succBegin(Graph &owner, NodeId node) { return Graph::succBegin(owner, node); }
-  static SuccIterator succEnd(Graph &owner, NodeId node) { return Graph::succEnd(owner, node); }
+  static SuccIterator succ_begin(Graph &owner, NodeId node) { return Graph::succ_begin(owner, node); }
+  static SuccIterator succ_end(Graph &owner, NodeId node) { return Graph::succ_end(owner, node); }
 };
 
 template <typename Graph> struct PrintableGraphTraits {
   using BaseTraits = GraphTraits<Graph>;
   using NodeId = typename BaseTraits::NodeId;
-  static std::string nodeToString(Graph &graph, NodeId node) { return Graph::nodeToString(graph, node); }
+  static std::string node_to_string(Graph &graph, NodeId node) { return Graph::node_to_string(graph, node); }
 };
 
 template <typename Graph, typename Visitor>
@@ -53,7 +53,7 @@ void visit_dfs_conditional(Graph &graph, typename GraphTraits<Graph>::NodeId ent
       continue;
     }
 
-    std::for_each(Traits::succBegin(graph, tail), Traits::succEnd(graph, tail),
+    std::for_each(Traits::succ_begin(graph, tail), Traits::succ_end(graph, tail),
                   [&worklist_inserter, &visited](typename Traits::NodeId node) {
                     if (visited.find(node) == visited.end()) {
                       *worklist_inserter = node;
@@ -91,7 +91,7 @@ void visit_rpo(Graph &graph, typename GraphTraits<Graph>::NodeId entry, Visitor 
     entered.insert(tail);
 
     size_t worklist_sz = worklist.size();
-    std::for_each(Traits::succBegin(graph, tail), Traits::succEnd(graph, tail),
+    std::for_each(Traits::succ_begin(graph, tail), Traits::succ_end(graph, tail),
                   [&worklist_inserter, &entered](typename Traits::NodeId node) {
                     if (entered.find(node) == entered.end()) {
                       *worklist_inserter = node;
@@ -119,10 +119,10 @@ template <typename Graph> struct GraphPrinter {
 
     auto print_visitor = [&ss, &graph](typename Traits::NodeId node) {
       auto print_succ = [node, &graph, &ss](typename Traits::NodeId succ) {
-        ss << PrintTraits::nodeToString(graph, node) << " -> " << PrintTraits::nodeToString(graph, succ)
-           << "\n";
+        ss << "\"" << PrintTraits::node_to_string(graph, node) << "\" -> \""
+           << PrintTraits::node_to_string(graph, succ) << "\"\n";
       };
-      std::for_each(Traits::succBegin(graph, node), Traits::succEnd(graph, node), print_succ);
+      std::for_each(Traits::succ_begin(graph, node), Traits::succ_end(graph, node), print_succ);
     };
     visit_dfs(graph, entry, print_visitor);
 
