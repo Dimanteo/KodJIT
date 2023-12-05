@@ -26,9 +26,14 @@ private:
 public:
   using iterator = typename DomNodeContainer::iterator;
 
-  void set_domination(NodeId dominator, NodeId dominated) {
+  // Return false if given relation is invalid. In particular if @dominated already dominating @dominator
+  bool set_domination(NodeId dominator, NodeId dominated) {
+    if (is_domination_computed(dominated) && is_dominator_of(dominated, dominator)) {
+      return false;
+    }
     m_tree[dominator].m_succ.insert(dominated);
     m_tree[dominated].m_preds.insert(dominator);
+    return true;
   }
 
   bool is_dominator_of(NodeId dominator, NodeId dominated) {
@@ -85,8 +90,10 @@ template <typename Graph> class DominatorTreeBuilder final {
 
     path.insert(dominator);
     for (auto &&node : m_all_nodes) {
-      if (path.find(node) == path.end())
-        m_tree->set_domination(dominator, node);
+      if (path.find(node) == path.end()) {
+        auto res = m_tree->set_domination(dominator, node);
+        assert(res && "Try to add invalid relation in Dom Tree");
+      }
     }
   }
 
