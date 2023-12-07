@@ -9,14 +9,11 @@
 
 namespace koda {
 
-template <typename Graph> class DominatorTree final {
-public:
-  using NodeId = typename GraphTraits<Graph>::NodeId;
-
-private:
+template <typename NodeId> class DominatorTree final {
   using DomNodeContainer = std::unordered_set<NodeId>;
 
   struct DomNode {
+    NodeId idom;
     DomNodeContainer m_succ;
     DomNodeContainer m_preds;
   };
@@ -41,23 +38,13 @@ public:
     return dominated_nodes.find(dominated) != dominated_nodes.end();
   }
 
-  bool is_domination_computed(NodeId node) { return m_tree.find(node) != m_tree.end(); }
+  bool is_domination_computed(NodeId node) const { return m_tree.find(node) != m_tree.end(); }
 
-  NodeId get_immediate_dom(NodeId node) {
+  void set_immediate_dom(NodeId node, NodeId dominator) { m_tree[node].idom = dominator; }
+
+  NodeId get_immediate_dom(NodeId node) const {
     assert(is_domination_computed(node));
-
-    auto &&dominators = m_tree[node].m_preds;
-    if (dominators.empty()) {
-      return node;
-    }
-    NodeId imm_dom = *dominators.begin();
-    for (auto &&dom : dominators) {
-      if (is_dominator_of(imm_dom, dom)) {
-        imm_dom = dom;
-      }
-    }
-
-    return imm_dom;
+    return m_tree.find(node)->second.idom;
   }
 
   iterator dominated_by_begin(NodeId node) { return m_tree[node].m_preds.begin(); }
@@ -73,12 +60,12 @@ template <typename Graph> class DominatorTreeBuilder final {
 
   NodeId m_entry;
   std::vector<NodeId> m_all_nodes;
-  DominatorTree<Graph> *m_tree;
+  DominatorTree<NodeId> *m_tree;
 
-  void find_dominated_by(Graph &graph, NodeId dominator) {
+  void find_dominated_by(Graph &graph, const NodeId &dominator) {
     std::unordered_set<NodeId> path;
 
-    auto visitor = [dominator, &path](NodeId node) {
+    auto visitor = [dominator, &path](const NodeId &node) {
       if (node == dominator) {
         return false;
       }
@@ -97,27 +84,50 @@ template <typename Graph> class DominatorTreeBuilder final {
     }
   }
 
-  void build(Graph &graph, NodeId entry, DominatorTree<Graph> &tree) {
+  NodeId find_immediate_dom(const NodeId &node) {
+    assert(m_tree->is_domination_computed(node));
+    if (node == m_entry) {
+      return node;
+    }
+    NodeId imm_dom = *m_tree->dominated_by_begin(node);
+    std::for_each(m_tree->dominated_by_begin(node), m_tree->dominated_by_end(node),
+                  [this, &imm_dom](const NodeId &dom) {
+                    if (m_tree->is_dominator_of(imm_dom, dom)) {
+                      imm_dom = dom;
+                    }
+                  });
+    return imm_dom;
+  }
+
+  void build(Graph &graph, const NodeId &entry, DominatorTree<NodeId> &tree) {
     m_entry = entry;
     m_tree = &tree;
     for (auto &&node : m_all_nodes) {
       find_dominated_by(graph, node);
     }
+    for (auto &&node : m_all_nodes) {
+      auto idom = find_immediate_dom(node);
+      m_tree->set_immediate_dom(node, idom);
+    }
   }
 
 public:
-  void build_tree(Graph &graph, NodeId entry, DominatorTree<Graph> &tree) {
+  [[nodiscard]] auto build_tree(Graph &graph, const NodeId &entry) {
+    DominatorTree<NodeId> tree;
     m_all_nodes.clear();
     auto nodes_inserter = std::back_inserter(m_all_nodes);
     visit_dfs(graph, entry, [&nodes_inserter](NodeId node) { *nodes_inserter = node; });
     build(graph, entry, tree);
+    return tree;
   }
 
   template <typename NodeIt>
-  void build_tree(Graph &graph, NodeId entry, DominatorTree<Graph> &tree, NodeIt begin, NodeIt end) {
+  [[nodiscard]] auto build_tree(Graph &graph, const NodeId &entry, NodeIt begin, NodeIt end) {
+    DominatorTree<NodeId> tree;
     m_all_nodes.clear();
     std::copy(begin, end, std::back_inserter(m_all_nodes));
     build(graph, entry, tree);
+    return tree;
   }
 };
 

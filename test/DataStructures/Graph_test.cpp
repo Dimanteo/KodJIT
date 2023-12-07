@@ -234,9 +234,8 @@ TEST(DomTreeTests, domTreeSimple) {
   graph.add_edge(1, 3);
   graph.add_edge(2, 3);
 
-  DominatorTree<TestGraph> tree;
   DominatorTreeBuilder<TestGraph> builder;
-  builder.build_tree(graph, 4, tree);
+  auto tree = builder.build_tree(graph, 4);
 
   for (size_t i = 0; i < graph_size; i++) {
     ASSERT_TRUE(tree.is_domination_computed(i));
@@ -261,7 +260,7 @@ TEST(DomTreeTests, domTreeSimple) {
   ASSERT_EQ(*++doms.begin(), 4);
 }
 
-TestGraph make_idom_graph(TestGraph &graph, DominatorTree<TestGraph> &tree) {
+TestGraph make_idom_graph(TestGraph &graph, DominatorTree<TestGraph::NodeId> &tree) {
   TestGraph dom_graph(graph.size());
   for (size_t node = 1; node < graph.size(); node++) {
     dom_graph.add_edge(tree.get_immediate_dom(node), node);
@@ -345,9 +344,8 @@ TEST(DomTreeTests, domTreeExample1) {
 
   graph.add_edge(7, 4);
 
-  DominatorTree<TestGraph> tree;
   DominatorTreeBuilder<TestGraph> dom_builder;
-  dom_builder.build_tree(graph, 1, tree);
+  auto tree = dom_builder.build_tree(graph, 1);
 
   auto idom_graph = make_idom_graph(graph, tree);
 
@@ -452,9 +450,8 @@ TEST(DomTreeTests, domTreeExample2) {
 
   graph.add_edge(10, 11);
 
-  DominatorTree<TestGraph> tree;
   DominatorTreeBuilder<TestGraph> dom_builder;
-  dom_builder.build_tree(graph, 1, tree);
+  auto tree = dom_builder.build_tree(graph, 1);
 
   auto idom_graph = make_idom_graph(graph, tree);
 
@@ -530,9 +527,8 @@ TEST(DomTreeTests, domTreeExample3) {
   graph.add_edge(8, 7);
   graph.add_edge(8, 9);
 
-  DominatorTree<TestGraph> tree;
   DominatorTreeBuilder<TestGraph> dom_builder;
-  dom_builder.build_tree(graph, 1, tree);
+  auto tree = dom_builder.build_tree(graph, 1);
 
   auto idom_graph = make_idom_graph(graph, tree);
 
