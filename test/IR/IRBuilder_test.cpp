@@ -11,6 +11,8 @@
 
 namespace koda {
 
+namespace Tests {
+
 void dumpCFG(const char *test_name, ProgramGraph &prog) {
   std::ofstream dot_log(test_name, std::ios_base::out);
   IRPrinter printer(dot_log);
@@ -163,5 +165,7 @@ TEST(IRTests, factorial) {
 
   dumpCFG("factorial.dot", prog);
 }
+
+} // namespace Tests
 
 } // namespace koda

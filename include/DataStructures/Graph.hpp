@@ -16,23 +16,31 @@ template <typename Graph> struct GraphTraits {
   using PredIterator = typename GraphType::PredIterator;
   using SuccIterator = typename GraphType::SuccIterator;
 
-  static PredIterator pred_begin(Graph &owner, NodeId node) { return Graph::pred_begin(owner, node); }
-  static PredIterator pred_end(Graph &owner, NodeId node) { return Graph::pred_end(owner, node); }
+  static PredIterator pred_begin(Graph &owner, NodeId &&node) {
+    return GraphType::pred_begin(owner, node);
+  }
+  static PredIterator pred_end(Graph &owner, NodeId &&node) {
+    return GraphType::pred_end(owner, node);
+  }
 
-  static SuccIterator succ_begin(Graph &owner, NodeId node) { return Graph::succ_begin(owner, node); }
-  static SuccIterator succ_end(Graph &owner, NodeId node) { return Graph::succ_end(owner, node); }
+  static SuccIterator succ_begin(Graph &owner, const NodeId &node) {
+    return GraphType::succ_begin(owner, node);
+  }
+  static SuccIterator succ_end(Graph &owner, const NodeId &node) {
+    return GraphType::succ_end(owner, node);
+  }
 };
 
 template <typename Graph> struct PrintableGraphTraits {
   using BaseTraits = GraphTraits<Graph>;
   using NodeId = typename BaseTraits::NodeId;
-  static std::string node_to_string(Graph &graph, NodeId node) {
-    return BaseTraits::GraphType::node_to_string(graph, node);
+  static std::string node_to_string(Graph &&graph, const NodeId &node) {
+    return BaseTraits::GraphType::node_to_string(std::forward<Graph>(graph), node);
   }
 };
 
 template <typename Graph, typename Visitor, typename PostVisitor>
-void visit_dfs_conditional(Graph &graph, const typename GraphTraits<Graph>::NodeId &entry, Visitor &&visitor,
+void visit_dfs_conditional(Graph &&graph, const typename GraphTraits<Graph>::NodeId &entry, Visitor &&visitor,
                            PostVisitor &&post_visitor) {
   using Traits = GraphTraits<Graph>;
 
@@ -87,7 +95,8 @@ void visit_dfs(Graph &&graph, const typename GraphTraits<Graph>::NodeId &entry, 
     visitor(node);
     return true;
   };
-  visit_dfs_conditional(std::forward<Graph>(graph), entry, forward_visitor, std::forward<PostVisitor>(post_visitor));
+  visit_dfs_conditional(std::forward<Graph>(graph), entry, forward_visitor,
+                        std::forward<PostVisitor>(post_visitor));
 }
 
 template <typename Graph, typename Visitor>
@@ -114,30 +123,34 @@ void visit_rpo(Graph &&graph, const typename GraphTraits<Graph>::NodeId &entry, 
   std::for_each(postorder.rbegin(), postorder.rend(), std::forward<Visitor>(visitor));
 }
 
-template <typename Graph> struct GraphPrinter {
+namespace GraphPrinter {
+
+template <typename Graph>
+std::string make_dot_graph(Graph &&graph, const typename GraphTraits<Graph>::NodeId &entry) {
   using Traits = GraphTraits<Graph>;
   using PrintTraits = PrintableGraphTraits<Graph>;
 
-  static std::string make_dot_graph(Graph &graph, typename Traits::NodeId entry) {
-    std::stringstream ss;
+  std::stringstream ss;
 
-    auto print_visitor = [&ss, &graph](typename Traits::NodeId node) {
-      auto print_succ = [node, &graph, &ss](typename Traits::NodeId succ) {
-        ss << "\"" << PrintTraits::node_to_string(graph, node) << "\" -> \""
-           << PrintTraits::node_to_string(graph, succ) << "\"\n";
-      };
-      std::for_each(Traits::succ_begin(graph, node), Traits::succ_end(graph, node), print_succ);
+  auto print_visitor = [&ss, &graph](const typename Traits::NodeId &node) {
+    auto print_succ = [node, &graph, &ss](const typename Traits::NodeId &succ) {
+      ss << "\"" << PrintTraits::node_to_string(graph, node) << "\" -> \""
+          << PrintTraits::node_to_string(graph, succ) << "\"\n";
     };
-    visit_dfs(graph, entry, print_visitor);
+    std::for_each(Traits::succ_begin(graph, node), Traits::succ_end(graph, node), print_succ);
+  };
+  visit_dfs(std::forward<Graph>(graph), entry, print_visitor);
 
-    return ss.str();
-  }
+  return ss.str();
+}
 
-  static void print_dot(Graph &graph, typename GraphTraits<Graph>::NodeId entry, std::ostream &out_str) {
-    out_str << "digraph G {\n";
-    out_str << make_dot_graph(graph, entry);
-    out_str << "}";
-  }
+template<typename Graph>
+void print_dot(Graph &&graph, const typename GraphTraits<Graph>::NodeId &entry, std::ostream &out_str) {
+  out_str << "digraph G {\n";
+  out_str << make_dot_graph(graph, entry);
+  out_str << "}";
+}
+
 };
 
 } // namespace koda

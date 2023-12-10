@@ -1,7 +1,9 @@
 #pragma once
 
 #include "IR/IROperand.hpp"
+#include <DataStructures/DominatorTree.hpp>
 #include <DataStructures/Graph.hpp>
+#include <DataStructures/Tree.hpp>
 #include <IR/BasicBlock.hpp>
 #include <IR/Instruction.hpp>
 
@@ -23,11 +25,33 @@ public:
   OperandType get_type() const { return m_type; }
 };
 
+class LoopInfo {
+public:
+  using id_type = size_t;
+
+private:
+  id_type m_id = 0;
+  BasicBlock *m_header;
+  std::vector<BasicBlock *> m_blocks;
+  std::vector<BasicBlock *> m_latches;
+
+public:
+  id_type get_id() const;
+};
+
 class ProgramGraph final {
 public:
   using BasicBlockArena = std::vector<std::unique_ptr<BasicBlock>>;
   using iterator = BasicBlockArena::iterator;
   using BBPtr = std::unique_ptr<BasicBlock>;
+
+  // Graph traits
+  using NodeId = BasicBlock *;
+  using PredIterator = BasicBlock::PredIterator;
+  using SuccIterator = BasicBlock::SuccIterator;
+
+  using DomsTree = DominatorTree<BasicBlock *>;
+  using LoopTree = Tree<LoopInfo::id_type, LoopInfo>;
 
 private:
   BasicBlockArena m_bb_arena{};
@@ -38,9 +62,12 @@ private:
 
   BasicBlock *m_entry = nullptr;
 
+  DomsTree m_dom_tree{nullptr};
+
+  LoopTree m_loop_tree{0};
+
 public:
   ProgramGraph() = default;
-
   ProgramGraph(const ProgramGraph &) = delete;
   ProgramGraph &operator=(const ProgramGraph &) = delete;
 
@@ -77,18 +104,13 @@ public:
   iterator begin() { return m_bb_arena.begin(); }
   iterator end() { return m_bb_arena.end(); }
 
-  // Printable graph traits
-  using NodeId = BasicBlock *;
-  static std::string node_to_string(ProgramGraph &graph, NodeId node) {
-    (void)graph;
-    return std::to_string(reinterpret_cast<uint64_t>(node));
-  }
-};
+  void build_dom_tree();
 
-template <> struct GraphTraits<ProgramGraph> {
-  using NodeId = BasicBlock *;
-  using PredIterator = BasicBlock::PredIterator;
-  using SuccIterator = BasicBlock::SuccIterator;
+  const DomsTree &get_dom_tree() const { return m_dom_tree; }
+
+  void build_loop_tree();
+
+  // Graph traits
 
   static PredIterator pred_begin([[maybe_unused]] ProgramGraph &owner, NodeId node) {
     return node->pred_begin();
@@ -105,6 +127,12 @@ template <> struct GraphTraits<ProgramGraph> {
   static SuccIterator succ_end(ProgramGraph &owner, NodeId node) {
     (void)owner;
     return node->succ_end();
+  }
+
+  // Printable graph traits
+  static std::string node_to_string(ProgramGraph &graph, NodeId node) {
+    (void)graph;
+    return std::to_string(reinterpret_cast<uint64_t>(node));
   }
 };
 

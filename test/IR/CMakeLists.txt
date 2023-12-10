@@ -1,5 +1,5 @@
-add_executable(irbuilder_test IRBuilder_test.cpp)
+add_gtest(irbuilder_test IRBuilder_test.cpp)
+target_link_libraries(irbuilder_test koda::IR koda::IR::printer)
 
-target_link_libraries(irbuilder_test koda::IR koda::IR::printer GTest::gtest_main)
-
-gtest_discover_tests(irbuilder_test)
+add_gtest(loop_analyzer_test LoopAnalyzer_test.cpp)
+target_link_libraries(loop_analyzer_test koda::IR koda::IR::printer)

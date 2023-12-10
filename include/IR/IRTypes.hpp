@@ -1,8 +1,6 @@
 #pragma once
 
-#include <array>
 #include <cstddef>
-#include <stdint.h>
 
 namespace koda {
 

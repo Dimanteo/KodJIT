@@ -4,6 +4,7 @@
 #include <IR/IROperand.hpp>
 #include <IR/IRTypes.hpp>
 
+#include <array>
 #include <limits>
 #include <ostream>
 #include <stddef.h>

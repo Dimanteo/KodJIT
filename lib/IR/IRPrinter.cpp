@@ -17,7 +17,7 @@ void IRPrinter::print_prog_graph(ProgramGraph &graph) {
   };
   std::for_each(graph.begin(), graph.end(), bb_print);
 
-  m_out_stream << GraphPrinter<ProgramGraph>::make_dot_graph(graph, graph.get_entry());
+  m_out_stream << GraphPrinter::make_dot_graph(graph, graph.get_entry());
 
   m_out_stream << "}";
 }

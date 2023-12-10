@@ -1,4 +1,4 @@
-#include <DataStructures/DominatorsTree.hpp>
+#include <DataStructures/DominatorTree.hpp>
 #include <DataStructures/Graph.hpp>
 
 #include <fstream>
@@ -46,6 +46,56 @@ public:
     return std::to_string(node);
   }
 };
+
+void dump_graph_and_dom_tree(TestGraph &graph, DominatorTree<size_t> &tree, std::string filename) {
+  std::ofstream dot_log(filename + ".dot", std::ios_base::out);
+  GraphPrinter::print_dot(graph, 1, dot_log);
+  dot_log.close();
+
+  dot_log.open(filename + "_DomTree.dot", std::ios_base::out);
+  GraphPrinter::print_dot(tree, 1, dot_log);
+  dot_log.close();
+}
+
+void compare_graphs(TestGraph &first, TestGraph &second, size_t entry) {
+  std::vector<size_t> first_path, second_path;
+
+  ASSERT_EQ(first.size(), second.size());
+
+  auto path_inserter = std::back_inserter(first_path);
+  auto visitor_f = [&path_inserter](size_t node) { *path_inserter = node; };
+  visit_dfs(first, entry, visitor_f);
+
+  path_inserter = std::back_inserter(second_path);
+  auto visitor_s = [&path_inserter](size_t node) { *path_inserter = node; };
+  visit_dfs(second, entry, visitor_s);
+
+  ASSERT_EQ(first_path.size(), second_path.size());
+  for (size_t i = entry; i < first.size(); ++i) {
+    ASSERT_EQ(first_path[i], second_path[i]);
+  }
+}
+
+void verify_tree(TestGraph &ref, DominatorTree<size_t> &tree, size_t entry) {
+  std::vector<size_t> ref_path;
+
+  auto inserter = std::back_inserter(ref_path);
+  auto visitor = [&inserter](size_t node) { *inserter = node; };
+  visit_dfs(ref, entry, visitor);
+
+  ASSERT_EQ(ref_path.size(), tree.size());
+  for (auto &&node : ref_path) {
+    ASSERT_TRUE(tree.contains(node));
+    ASSERT_TRUE(std::equal(ref.pred_begin(ref, node), ref.pred_end(ref, node), tree.pred_begin(tree, node),
+                           tree.pred_end(tree, node), [](auto ref_node, auto tree_node) { return ref_node == tree_node.first; }));
+    std::vector<size_t> ref_succs, tree_succs;
+    std::copy(ref.succ_begin(ref, node), ref.succ_end(ref, node), std::back_inserter(ref_succs));
+    std::copy(tree.children_begin(node), tree.children_end(node), std::back_inserter(tree_succs));
+    std::sort(ref_succs.begin(), ref_succs.end());
+    std::sort(tree_succs.begin(), tree_succs.end());
+    ASSERT_TRUE(std::equal(ref_succs.begin(), ref_succs.end(), tree_succs.begin(), tree_succs.end()));
+  }
+}
 
 TEST(GraphTests, DFSLoop) {
   TestGraph graph(2);
@@ -220,7 +270,7 @@ TEST(GraphTests, RPOForkJoin) {
   ASSERT_EQ(rpo.back(), 3);
 
   std::ofstream dot_log("RPOForkJoin.dot", std::ios_base::out);
-  GraphPrinter<TestGraph>::print_dot(graph, 0, dot_log);
+  GraphPrinter::print_dot(graph, 0, dot_log);
   dot_log.close();
 }
 
@@ -234,11 +284,12 @@ TEST(DomTreeTests, domTreeSimple) {
   graph.add_edge(1, 3);
   graph.add_edge(2, 3);
 
+  DominatorTree<size_t> tree(graph_size);
   DominatorTreeBuilder<TestGraph> builder;
-  auto tree = builder.build_tree(graph, 4);
+  builder.build_tree(graph, 4, tree);
 
   for (size_t i = 0; i < graph_size; i++) {
-    ASSERT_TRUE(tree.is_domination_computed(i));
+    ASSERT_TRUE(tree.contains(i));
   }
 
   ASSERT_TRUE(tree.is_dominator_of(4, 0));
@@ -252,49 +303,12 @@ TEST(DomTreeTests, domTreeSimple) {
   ASSERT_FALSE(tree.is_dominator_of(2, 1));
 
   std::set<size_t> doms;
-  for (auto &&dom = tree.dominated_by_begin(3); dom != tree.dominated_by_end(3); ++dom) {
+  for (auto &&dom = tree.get(3).begin(); dom != tree.get(3).end(); ++dom) {
     doms.insert(*dom);
   }
   ASSERT_EQ(doms.size(), 2);
   ASSERT_EQ(*doms.begin(), 0);
   ASSERT_EQ(*++doms.begin(), 4);
-}
-
-TestGraph make_idom_graph(TestGraph &graph, DominatorTree<TestGraph::NodeId> &tree) {
-  TestGraph dom_graph(graph.size());
-  for (size_t node = 1; node < graph.size(); node++) {
-    dom_graph.add_edge(tree.get_immediate_dom(node), node);
-  }
-  return dom_graph;
-}
-
-void dump_graph_and_dom_tree(TestGraph &graph, TestGraph &tree, std::string filename) {
-  std::ofstream dot_log(filename + ".dot", std::ios_base::out);
-  GraphPrinter<TestGraph>::print_dot(graph, 1, dot_log);
-  dot_log.close();
-
-  dot_log.open(filename + "_DomTree.dot", std::ios_base::out);
-  GraphPrinter<TestGraph>::print_dot(tree, 1, dot_log);
-  dot_log.close();
-}
-
-void compare_graphs(TestGraph &first, TestGraph &second, size_t entry) {
-  std::vector<size_t> first_path, second_path;
-
-  ASSERT_EQ(first.size(), second.size());
-
-  auto path_inserter = std::back_inserter(first_path);
-  auto visitor_f = [&path_inserter](size_t node) { *path_inserter = node; };
-  visit_dfs(first, entry, visitor_f);
-
-  path_inserter = std::back_inserter(second_path);
-  auto visitor_s = [&path_inserter](size_t node) { *path_inserter = node; };
-  visit_dfs(second, entry, visitor_s);
-
-  ASSERT_EQ(first_path.size(), second_path.size());
-  for (size_t i = entry; i < first.size(); ++i) {
-    ASSERT_EQ(first_path[i], second_path[i]);
-  }
 }
 
 TEST(DomTreeTests, domTreeExample1) {
@@ -344,10 +358,9 @@ TEST(DomTreeTests, domTreeExample1) {
 
   graph.add_edge(7, 4);
 
+  DominatorTree<size_t> tree(0);
   DominatorTreeBuilder<TestGraph> dom_builder;
-  auto tree = dom_builder.build_tree(graph, 1);
-
-  auto idom_graph = make_idom_graph(graph, tree);
+  dom_builder.build_tree(graph, 1, tree);
 
   TestGraph ref_idom(graph_size);
   ref_idom.add_edge(1, 2);
@@ -357,8 +370,8 @@ TEST(DomTreeTests, domTreeExample1) {
   ref_idom.add_edge(6, 5);
   ref_idom.add_edge(6, 7);
 
-  compare_graphs(idom_graph, ref_idom, 1);
-  dump_graph_and_dom_tree(graph, idom_graph, "Example1");
+  verify_tree(ref_idom, tree, 1);
+  dump_graph_and_dom_tree(graph, tree, "Example1");
 }
 
 TEST(DomTreeTests, domTreeExample2) {
@@ -450,10 +463,9 @@ TEST(DomTreeTests, domTreeExample2) {
 
   graph.add_edge(10, 11);
 
+  DominatorTree<size_t> tree(0);
   DominatorTreeBuilder<TestGraph> dom_builder;
-  auto tree = dom_builder.build_tree(graph, 1);
-
-  auto idom_graph = make_idom_graph(graph, tree);
+  dom_builder.build_tree(graph, 1, tree);
 
   TestGraph ref_idom(graph_size);
   ref_idom.add_edge(1, 2);
@@ -467,8 +479,8 @@ TEST(DomTreeTests, domTreeExample2) {
   ref_idom.add_edge(8, 10);
   ref_idom.add_edge(10, 11);
 
-  compare_graphs(idom_graph, ref_idom, 1);
-  dump_graph_and_dom_tree(graph, idom_graph, "Example2");
+  verify_tree(ref_idom, tree, 1);
+  dump_graph_and_dom_tree(graph, tree, "Example2");
 }
 
 TEST(DomTreeTests, domTreeExample3) {
@@ -527,10 +539,9 @@ TEST(DomTreeTests, domTreeExample3) {
   graph.add_edge(8, 7);
   graph.add_edge(8, 9);
 
+  DominatorTree<size_t> tree(0);
   DominatorTreeBuilder<TestGraph> dom_builder;
-  auto tree = dom_builder.build_tree(graph, 1);
-
-  auto idom_graph = make_idom_graph(graph, tree);
+  dom_builder.build_tree(graph, 1, tree);
 
   TestGraph ref_idom(graph.size());
   ref_idom.add_edge(1, 2);
@@ -542,8 +553,8 @@ TEST(DomTreeTests, domTreeExample3) {
   ref_idom.add_edge(5, 6);
   ref_idom.add_edge(6, 8);
 
-  compare_graphs(idom_graph, ref_idom, 1);
-  dump_graph_and_dom_tree(graph, idom_graph, "Example3");
+  verify_tree(ref_idom, tree, 1);
+  dump_graph_and_dom_tree(graph, tree, "Example3");
 }
 
 } // namespace Tests
