@@ -21,7 +21,8 @@ void IRPrinter::print_prog_graph(ProgramGraph &graph) {
     size_t loop_cnt = 1;
     auto &&loop_tree = graph.get_loop_tree();
     for (auto loop : graph.get_loop_tree()) {
-      m_out_stream << "subgraph loop_" << loop_cnt++ << " {\n\tlabel = \"loop " << loop.first << "\";\n";
+      m_out_stream << "subgraph cluster_" << loop_cnt++ << " {\n\tlabel = \"loop " << loop.first
+                   << "\";\n\tcolor=blue\n";
       for (auto &&bb : loop_tree.get(loop.first)) {
         m_out_stream << "\t\"" << ProgramGraph::node_to_string(graph, bb) << "\";\n";
       }

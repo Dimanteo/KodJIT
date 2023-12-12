@@ -145,17 +145,18 @@ public:
   Key get_root() const { return m_root; }
 
   void link(Key parent, Key child) {
+    assert(parent != child && "cant't link to self");
     assert(contains(parent) && "vertice doesn't exist");
     assert(contains(child) && "vertice doesn't exist");
 
     auto &&parent_vert = m_tree[parent];
     auto &&child_vert = m_tree[child];
 
-    parent_vert.m_succ.push_back(child);
-
     if (child_vert.m_parent != m_none) {
       unlink_parent(child);
     }
+
+    parent_vert.m_succ.push_back(child);
     child_vert.m_parent = parent;
 
     if (child == m_root) {
@@ -195,9 +196,9 @@ public:
 
   Key get_child(Key key, size_t idx) const { return m_tree.find(key)->second.m_succ[idx]; }
 
-  child_iterator children_begin(Key key) { return std::begin(m_tree[key].m_succ); }
+  child_iterator children_begin(Key key) { return m_tree[key].m_succ.begin(); }
 
-  child_iterator children_end(Key key) { return std::end(m_tree[key].m_succ); }
+  child_iterator children_end(Key key) { return m_tree[key].m_succ.end(); }
 
   // Graph traits
   using NodeId = Key;

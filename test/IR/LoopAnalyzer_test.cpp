@@ -1,6 +1,6 @@
 #include <IR/IRBuilder.hpp>
-#include <IR/ProgramGraph.hpp>
 #include <IR/IRPrinter.hpp>
+#include <IR/ProgramGraph.hpp>
 
 #include <gtest/gtest.h>
 
@@ -9,13 +9,6 @@
 namespace koda {
 
 namespace Tests {
-
-void dumpCFG(const char *test_name, ProgramGraph &prog) {
-  std::ofstream dot_log(test_name, std::ios_base::out);
-  IRPrinter printer(dot_log);
-  printer.print_prog_graph(prog);
-  dot_log.close();
-}
 
 void dump_graph_and_dom_tree(ProgramGraph &graph, std::string filename) {
   std::ofstream dot_log(filename + ".dot", std::ios_base::out);
@@ -92,22 +85,21 @@ TEST(LoopAnalyzerTests, loop_analyzer_ex1) {
   std::vector<bbid_t> blocks;
   for (auto &&block : loop_tree.get(B->get_id())) {
     blocks.push_back(block->get_id());
+    ASSERT_TRUE(block->is_in_loop());
+    ASSERT_EQ(block->get_owner_loop_header(), B);
   }
-  std::sort(blocks.begin(), blocks.end());
-
   std::vector<bbid_t> ref = {B->get_id(), D->get_id(), E->get_id()};
+  std::sort(blocks.begin(), blocks.end());
   std::sort(ref.begin(), ref.end());
   ASSERT_TRUE(std::equal(blocks.begin(), blocks.end(), ref.begin(), ref.end()));
-
-  ASSERT_FALSE(A->is_in_loop());
-  ASSERT_FALSE(C->is_in_loop());
 
   blocks.clear();
   for (auto &&block : loop_tree.get(loop_tree.get_root())) {
     blocks.push_back(block->get_id());
+    ASSERT_FALSE(block->is_in_loop());
   }
-  std::sort(blocks.begin(), blocks.end());
   ref = {A->get_id(), C->get_id()};
+  std::sort(blocks.begin(), blocks.end());
   std::sort(ref.begin(), ref.end());
   ASSERT_TRUE(std::equal(blocks.begin(), blocks.end(), ref.begin(), ref.end()));
 

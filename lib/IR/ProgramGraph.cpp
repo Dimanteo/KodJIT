@@ -83,9 +83,9 @@ void ProgramGraph::build_loop_tree() {
         return false;
       }
       marked[bb->get_id()] = true;
-      if (bb->is_in_loop()) {
+      if (bb->is_in_loop() && bb->get_owner_loop_header() != header) {
         m_loop_tree.link(header->get_id(), bb->get_owner_loop_header()->get_id());
-      } else {
+      } else if (!bb->is_in_loop()) {
         bb->set_owner_loop_header(header);
         loop.add_block(bb);
       }

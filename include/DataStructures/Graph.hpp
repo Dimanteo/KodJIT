@@ -146,7 +146,7 @@ std::string make_dot_graph(Graph &&graph, const typename GraphTraits<Graph>::Nod
 template <typename Graph>
 void print_dot(Graph &&graph, const typename GraphTraits<Graph>::NodeId &entry, std::ostream &out_str) {
   out_str << "digraph G {\n";
-  out_str << make_dot_graph(graph, entry);
+  out_str << make_dot_graph(std::forward<Graph>(graph), entry);
   out_str << "}";
 }
 
