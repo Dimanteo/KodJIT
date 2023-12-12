@@ -134,7 +134,7 @@ std::string make_dot_graph(Graph &&graph, const typename GraphTraits<Graph>::Nod
   auto print_visitor = [&ss, &graph](const typename Traits::NodeId &node) {
     auto print_succ = [node, &graph, &ss](const typename Traits::NodeId &succ) {
       ss << "\"" << PrintTraits::node_to_string(graph, node) << "\" -> \""
-         << PrintTraits::node_to_string(graph, succ) << "\"\n";
+         << PrintTraits::node_to_string(graph, succ) << "\";\n";
     };
     std::for_each(Traits::succ_begin(graph, node), Traits::succ_end(graph, node), print_succ);
   };

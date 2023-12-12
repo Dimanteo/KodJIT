@@ -109,7 +109,8 @@ void ProgramGraph::build_loop_tree() {
   // Build tree
   m_loop_tree.insert(ROOT_LOOP_ID);
   m_loop_tree.set_root(ROOT_LOOP_ID);
-  auto root_loop = m_loop_tree.get(ROOT_LOOP_ID);
+  auto &root_loop = m_loop_tree.get(ROOT_LOOP_ID);
+  root_loop.set_reducible(false);
   for (auto &&loop : m_loop_tree) {
     auto loop_id = loop.first;
     if (loop_id != ROOT_LOOP_ID && !m_loop_tree.has_parent(loop_id)) {

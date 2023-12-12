@@ -28,7 +28,7 @@ void dump_graph_and_dom_tree(ProgramGraph &graph, std::string filename) {
   dot_log.close();
 }
 
-TEST(LoopAnalyzeTests, loop_analyzer_ex1) {
+TEST(LoopAnalyzerTests, loop_analyzer_ex1) {
   /*
           ┌───┐
           │ A │
@@ -76,8 +76,6 @@ TEST(LoopAnalyzeTests, loop_analyzer_ex1) {
   builder.set_insert_point(E);
   builder.create_branch(B);
 
-  dumpCFG("bb_dom_tree.dot", graph);
-
   graph.build_dom_tree();
 
   auto &&tree = graph.get_dom_tree();
@@ -88,6 +86,31 @@ TEST(LoopAnalyzeTests, loop_analyzer_ex1) {
   ASSERT_EQ(tree.get_parent(E), D);
 
   graph.build_loop_tree();
+  auto &loop_tree = graph.get_loop_tree();
+  ASSERT_TRUE(loop_tree.contains(B->get_id()));
+
+  std::vector<bbid_t> blocks;
+  for (auto &&block : loop_tree.get(B->get_id())) {
+    blocks.push_back(block->get_id());
+  }
+  std::sort(blocks.begin(), blocks.end());
+
+  std::vector<bbid_t> ref = {B->get_id(), D->get_id(), E->get_id()};
+  std::sort(ref.begin(), ref.end());
+  ASSERT_TRUE(std::equal(blocks.begin(), blocks.end(), ref.begin(), ref.end()));
+
+  ASSERT_FALSE(A->is_in_loop());
+  ASSERT_FALSE(C->is_in_loop());
+
+  blocks.clear();
+  for (auto &&block : loop_tree.get(loop_tree.get_root())) {
+    blocks.push_back(block->get_id());
+  }
+  std::sort(blocks.begin(), blocks.end());
+  ref = {A->get_id(), C->get_id()};
+  std::sort(ref.begin(), ref.end());
+  ASSERT_TRUE(std::equal(blocks.begin(), blocks.end(), ref.begin(), ref.end()));
+
   dump_graph_and_dom_tree(graph, "loop_ex1");
 }
 

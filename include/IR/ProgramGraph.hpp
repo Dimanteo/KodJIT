@@ -35,6 +35,8 @@ class LoopInfo {
   std::vector<BasicBlock *> m_latches{};
 
 public:
+  using iterator = std::vector<BasicBlock *>::iterator;
+
   BasicBlock *get_header() const { return m_header; }
 
   bool is_reducible() const { return m_is_reducible; }
@@ -48,6 +50,10 @@ public:
   void add_block(BasicBlock *bb) {
     m_blocks.push_back(bb);
   }
+
+  iterator begin() { return m_blocks.begin(); }
+
+  iterator end() { return m_blocks.end(); }
 };
 
 class ProgramGraph final {
