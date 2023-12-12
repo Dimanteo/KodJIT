@@ -33,6 +33,8 @@ private:
 
   ProgramGraph *m_graph = nullptr;
 
+  BasicBlock *m_loop_header = nullptr;
+
   enum SuccessorIdx : unsigned { FALSE_IDX = 0, UNCOND_IDX = 0, TRUE_IDX = 1 };
 
   BasicBlock *get_successor(SuccessorIdx idx) const {
@@ -84,6 +86,12 @@ public:
   void add_predecessor(BasicBlock *pred) { m_predecessors.push_back(pred); }
 
   OperandType get_type() const override { return OperandType::LABEL; }
+
+  bool is_in_loop() { return  m_loop_header != nullptr; }
+
+  void set_owner_loop_header(BasicBlock *header) { m_loop_header = header; }
+
+  BasicBlock *get_owner_loop_header() const { return m_loop_header; }
 
   // Basic block iterators
   iterator begin() noexcept { return m_instructions.begin(); }

@@ -26,17 +26,28 @@ public:
 };
 
 class LoopInfo {
-public:
-  using id_type = size_t;
+  bool m_is_reducible = true;
 
-private:
-  id_type m_id = 0;
-  BasicBlock *m_header;
-  std::vector<BasicBlock *> m_blocks;
-  std::vector<BasicBlock *> m_latches;
+  BasicBlock *m_header = nullptr;
+
+  std::vector<BasicBlock *> m_blocks{};
+
+  std::vector<BasicBlock *> m_latches{};
 
 public:
-  id_type get_id() const;
+  BasicBlock *get_header() const { return m_header; }
+
+  bool is_reducible() const { return m_is_reducible; }
+
+  void add_back_edge(BasicBlock *latch, BasicBlock *header);
+
+  void set_reducible(bool is_reducible) { m_is_reducible = is_reducible; }
+
+  std::vector<BasicBlock *> &get_latches() { return m_latches; }
+
+  void add_block(BasicBlock *bb) {
+    m_blocks.push_back(bb);
+  }
 };
 
 class ProgramGraph final {
@@ -44,6 +55,7 @@ public:
   using BasicBlockArena = std::vector<std::unique_ptr<BasicBlock>>;
   using iterator = BasicBlockArena::iterator;
   using BBPtr = std::unique_ptr<BasicBlock>;
+  using loop_id_t = bbid_t;
 
   // Graph traits
   using NodeId = BasicBlock *;
@@ -51,9 +63,10 @@ public:
   using SuccIterator = BasicBlock::SuccIterator;
 
   using DomsTree = DominatorTree<BasicBlock *>;
-  using LoopTree = Tree<LoopInfo::id_type, LoopInfo>;
+  using LoopTree = Tree<bbid_t, LoopInfo>;
 
 private:
+
   BasicBlockArena m_bb_arena{};
 
   std::vector<std::unique_ptr<Instruction>> m_inst_arena{};
@@ -64,7 +77,9 @@ private:
 
   DomsTree m_dom_tree{nullptr};
 
-  LoopTree m_loop_tree{0};
+  constexpr static loop_id_t ROOT_LOOP_ID = -1;
+  constexpr static loop_id_t NONE_LOOP_ID = -2;
+  LoopTree m_loop_tree{NONE_LOOP_ID};
 
 public:
   ProgramGraph() = default;
@@ -109,6 +124,8 @@ public:
   const DomsTree &get_dom_tree() const { return m_dom_tree; }
 
   void build_loop_tree();
+
+  LoopTree &get_loop_tree() { return m_loop_tree; }
 
   // Graph traits
 

@@ -4,7 +4,7 @@
 
 namespace koda {
 
-using bbid_t = size_t;
+using bbid_t = long long int;
 using instid_t = size_t;
 
 enum InstOpcode : unsigned {

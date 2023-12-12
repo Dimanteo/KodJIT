@@ -84,16 +84,23 @@ void verify_tree(TestGraph &ref, DominatorTree<size_t> &tree, size_t entry) {
   visit_dfs(ref, entry, visitor);
 
   ASSERT_EQ(ref_path.size(), tree.size());
+  std::vector<size_t> ref_buf, tree_buf;
   for (auto &&node : ref_path) {
     ASSERT_TRUE(tree.contains(node));
-    ASSERT_TRUE(std::equal(ref.pred_begin(ref, node), ref.pred_end(ref, node), tree.pred_begin(tree, node),
-                           tree.pred_end(tree, node), [](auto ref_node, auto tree_node) { return ref_node == tree_node.first; }));
-    std::vector<size_t> ref_succs, tree_succs;
-    std::copy(ref.succ_begin(ref, node), ref.succ_end(ref, node), std::back_inserter(ref_succs));
-    std::copy(tree.children_begin(node), tree.children_end(node), std::back_inserter(tree_succs));
-    std::sort(ref_succs.begin(), ref_succs.end());
-    std::sort(tree_succs.begin(), tree_succs.end());
-    ASSERT_TRUE(std::equal(ref_succs.begin(), ref_succs.end(), tree_succs.begin(), tree_succs.end()));
+    ref_buf.clear();
+    tree_buf.clear();
+    std::copy(ref.pred_begin(ref, node), ref.pred_end(ref, node), std::back_inserter(ref_buf));
+    std::copy(tree.pred_begin(node), tree.pred_end(node), std::back_inserter(tree_buf));
+    ASSERT_EQ(tree_buf.size(), ref_buf.size());
+    ASSERT_TRUE(std::equal(ref_buf.begin(), ref_buf.end(), tree_buf.begin(), tree_buf.end()));
+    ref_buf.clear();
+    tree_buf.clear();
+    std::copy(ref.succ_begin(ref, node), ref.succ_end(ref, node), std::back_inserter(ref_buf));
+    std::copy(tree.children_begin(node), tree.children_end(node), std::back_inserter(tree_buf));
+    std::sort(ref_buf.begin(), ref_buf.end());
+    std::sort(tree_buf.begin(), tree_buf.end());
+    ASSERT_EQ(tree_buf.size(), ref_buf.size());
+    ASSERT_TRUE(std::equal(ref_buf.begin(), ref_buf.end(), tree_buf.begin(), tree_buf.end()));
   }
 }
 
@@ -202,6 +209,38 @@ TEST(GraphTests, DFSCycle) {
   auto visitor = [&path_inserter](size_t node) { *path_inserter = node; };
 
   visit_dfs(graph, 0, visitor);
+
+  ASSERT_EQ(reference_path.size(), path.size());
+
+  for (size_t i = 0; i < path.size(); ++i) {
+    ASSERT_EQ(path[i], reference_path[i]);
+  }
+}
+
+TEST(GraphTests, DFSCycleBackwards) {
+  /*
+              ┌─────────┐
+              ▼         │
+  ┌───┐     ┌───┐     ┌───┐     ┌───┐
+  │ 0 │ ──▶ │ 1 │ ──▶ │ 2 │ ──▶ │ 3 │
+  └───┘     └───┘     └───┘     └───┘
+    ▲                             │
+    └─────────────────────────────┘
+  */
+  TestGraph graph(4);
+  graph.add_edge(0, 1);
+  graph.add_edge(1, 2);
+  graph.add_edge(2, 1);
+  graph.add_edge(2, 3);
+  graph.add_edge(3, 0);
+
+  std::vector<size_t> reference_path{3, 2, 1, 0};
+
+  std::vector<size_t> path;
+  auto path_inserter = std::back_inserter(path);
+  auto visitor = [&path_inserter](size_t node) { *path_inserter = node; };
+
+  visit_dfs<true>(graph, 3, visitor);
 
   ASSERT_EQ(reference_path.size(), path.size());
 

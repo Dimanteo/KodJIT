@@ -7,27 +7,97 @@
 #include <unordered_map>
 #include <vector>
 
-template <typename Key, typename Value> class Tree {
+namespace koda {
 
-  struct Vertice {
+template <typename Key> struct TreeParentIterator {
+  using value_type = typename std::remove_reference<Key>::type;
+  using reference = value_type &;
+  using const_reference = const value_type &;
+  using pointer = value_type *;
+  using difference_type = size_t;
+  using iterator_category = std::input_iterator_tag;
+
+private:
+  Key m_val;
+  bool m_is_ended = false;
+
+public:
+  TreeParentIterator() = default;
+
+  TreeParentIterator(const_reference val) : m_val(val), m_is_ended(false) {}
+
+  const_reference operator*() const noexcept {
+    assert(!m_is_ended);
+    return m_val;
+  }
+
+  TreeParentIterator &operator++() noexcept {
+    m_is_ended = true;
+    return *this;
+  }
+
+  TreeParentIterator &operator++(int) noexcept {
+    auto tmp = *this;
+    ++*this;
+    return tmp;
+  }
+
+  pointer operator->() const noexcept {
+    assert(!m_is_ended);
+    if (m_is_ended) {
+      return nullptr;
+    }
+    return &m_val;
+  }
+
+  bool is_equal(const TreeParentIterator &other) const noexcept {
+    return m_is_ended == other.m_is_ended && m_val == other.m_val;
+  }
+};
+
+template <typename Key>
+bool operator==(const TreeParentIterator<Key> &lhs, const TreeParentIterator<Key> &rhs) noexcept {
+  return lhs.is_equal(rhs);
+}
+
+template <typename Key>
+bool operator!=(const TreeParentIterator<Key> &lhs, const TreeParentIterator<Key> &rhs) noexcept {
+  return !(lhs == rhs);
+}
+
+template <typename Key, typename Value> class Tree {
+  class Vertice {
+    friend Tree;
+
     using Successors = std::vector<Key>;
+
     Value m_value;
+
     Key m_parent;
+
     Successors m_succ;
 
+  public:
     explicit Vertice() = default;
+
     explicit Vertice(Key parent) : m_parent(parent) {}
+
+    Value &value() { return m_value; }
+
+    const Value &value() const { return m_value; }
   };
+
+  using VerticeMap = std::unordered_map<Key, Vertice>;
 
   Key m_root;
 
-  std::unordered_map<Key, Vertice> m_tree;
+  VerticeMap m_tree;
 
 public:
   using KeyType = Key;
   using ValueType = Value;
+  using iterator = typename VerticeMap::iterator;
   using child_iterator = typename Vertice::Successors::iterator;
-  using parent_iterator = typename std::unordered_map<Key, Vertice>::iterator;
 
   const Key m_none;
 
@@ -111,35 +181,42 @@ public:
     child_vert.m_parent = m_none;
   }
 
+  iterator begin() { return m_tree.begin(); }
+
+  iterator end() { return m_tree.end(); }
+
   const Value &get(Key key) const { return m_tree.find(key)->second.m_value; }
+
   Value &get(Key key) { return m_tree.find(key)->second.m_value; }
+
+  bool has_parent(Key key) const { return contains(get_parent(key)); }
+
   Key get_parent(Key key) const { return m_tree.find(key)->second.m_parent; }
+
   Key get_child(Key key, size_t idx) const { return m_tree.find(key)->second.m_succ[idx]; }
+
   child_iterator children_begin(Key key) { return std::begin(m_tree[key].m_succ); }
+
   child_iterator children_end(Key key) { return std::end(m_tree[key].m_succ); }
 
   // Graph traits
   using NodeId = Key;
-  using PredIterator = parent_iterator;
+  using PredIterator = TreeParentIterator<NodeId>;
   using SuccIterator = child_iterator;
 
-  PredIterator pred_begin(NodeId key) {
-    auto par_key = m_tree.find(key)->second.m_parent;
-    return m_tree.find(par_key);
-  }
-  PredIterator pred_end(NodeId key) {
-    auto par_key = m_tree.find(key)->second.m_parent;
-    auto par_it = m_tree.find(par_key);
-    if (par_it == m_tree.end()) {
-      return par_it;
+  PredIterator pred_begin(const NodeId &key) {
+    auto par_key = get_parent(key);
+    if (par_key == m_none) {
+      return pred_end(key);
     }
-    return std::next(par_it);
+    return PredIterator(get_parent(key));
   }
-  static PredIterator pred_begin(Tree &owner, NodeId key) { return owner.pred_begin(key); }
-  static PredIterator pred_end(Tree &owner, NodeId key) { return owner.pred_end(key); }
+  PredIterator pred_end(const NodeId &key) { return std::next(PredIterator(get_parent(key))); }
+  static PredIterator pred_begin(Tree &owner, const NodeId &key) { return owner.pred_begin(key); }
+  static PredIterator pred_end(Tree &owner, const NodeId &key) { return owner.pred_end(key); }
 
-  static SuccIterator succ_begin(Tree &owner, NodeId key) { return owner.children_begin(key); }
-  static SuccIterator succ_end(Tree &owner, NodeId key) { return owner.children_end(key); }
+  static SuccIterator succ_begin(Tree &owner, const NodeId &key) { return owner.children_begin(key); }
+  static SuccIterator succ_end(Tree &owner, const NodeId &key) { return owner.children_end(key); }
 
   // Printable graph traits
   static std::string node_to_string(Tree &tree, const NodeId &node) {
@@ -147,3 +224,5 @@ public:
     return std::to_string(node);
   }
 };
+
+} // namespace koda

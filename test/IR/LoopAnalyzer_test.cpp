@@ -17,7 +17,18 @@ void dumpCFG(const char *test_name, ProgramGraph &prog) {
   dot_log.close();
 }
 
-TEST(LoopAnalyzeTests, bb_dom_tree) {
+void dump_graph_and_dom_tree(ProgramGraph &graph, std::string filename) {
+  std::ofstream dot_log(filename + ".dot", std::ios_base::out);
+  IRPrinter printer(dot_log);
+  printer.print_prog_graph(graph);
+  dot_log.close();
+
+  dot_log.open(filename + "_LoopTree.dot", std::ios_base::out);
+  GraphPrinter::print_dot(graph.get_loop_tree(), graph.get_loop_tree().get_root(), dot_log);
+  dot_log.close();
+}
+
+TEST(LoopAnalyzeTests, loop_analyzer_ex1) {
   /*
           ┌───┐
           │ A │
@@ -75,6 +86,9 @@ TEST(LoopAnalyzeTests, bb_dom_tree) {
   ASSERT_EQ(tree.get_parent(C), B);
   ASSERT_EQ(tree.get_parent(D), B);
   ASSERT_EQ(tree.get_parent(E), D);
+
+  graph.build_loop_tree();
+  dump_graph_and_dom_tree(graph, "loop_ex1");
 }
 
 } // namespace Tests
