@@ -18,7 +18,7 @@ template <typename NodeId> struct DominatorTree final : public Tree<NodeId, std:
 
   // Return false if given relation is invalid. In particular if @dominated already dominating @dominator
   bool set_domination(NodeId dominator, NodeId dominated) {
-    if (contains(dominated) && is_dominator_of(dominated, dominator)) {
+    if (!contains(dominated) || !contains(dominator)) {
       return false;
     }
     if (is_dominator_of(dominated, dominator)) {
