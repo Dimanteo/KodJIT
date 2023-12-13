@@ -8,10 +8,15 @@
 namespace koda {
 
 void IRPrinter::print_prog_graph(ProgramGraph &graph) {
+  assert(graph.get_entry() != nullptr && "Graph must have an entry point");
   m_out_stream << "digraph G {\n";
 
   auto bb_print = [this, &graph](ProgramGraph::BBPtr &bb) {
-    m_out_stream << "\"" << ProgramGraph::node_to_string(graph, bb.get()) << "\" [shape=record,label=\"";
+    m_out_stream << "\"" << ProgramGraph::node_to_string(graph, bb.get()) << "\" [shape=record,";
+    if (bb.get() == graph.get_entry()) {
+      m_out_stream << "color=\"red\",";
+    }
+    m_out_stream << "label=\"";
     print_block(*bb);
     m_out_stream << "\"];\n";
   };

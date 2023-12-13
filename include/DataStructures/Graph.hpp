@@ -16,7 +16,9 @@ template <typename Graph> struct GraphTraits {
   using PredIterator = typename GraphType::PredIterator;
   using SuccIterator = typename GraphType::SuccIterator;
 
-  static PredIterator pred_begin(Graph &owner, const NodeId &node) { return GraphType::pred_begin(owner, node); }
+  static PredIterator pred_begin(Graph &owner, const NodeId &node) {
+    return GraphType::pred_begin(owner, node);
+  }
   static PredIterator pred_end(Graph &owner, const NodeId &node) { return GraphType::pred_end(owner, node); }
 
   static SuccIterator succ_begin(Graph &owner, const NodeId &node) {
@@ -108,6 +110,18 @@ void visit_dfs(Graph &&graph, const typename GraphTraits<Graph>::NodeId &entry, 
   visit_dfs_conditional<Backward>(std::forward<Graph>(graph), entry, forward_visitor);
 }
 
+template <bool Backward = false, typename Graph, typename PostVisitor>
+void visit_dfs_postorder(Graph &&graph, const typename GraphTraits<Graph>::NodeId &entry,
+                         PostVisitor &&visitor) {
+  using NodeId = typename GraphTraits<Graph>::NodeId;
+  auto dummy_visitor = [](const NodeId &node) {
+    (void)node;
+    return true;
+  };
+  visit_dfs_conditional<Backward>(std::forward<Graph>(graph), entry, dummy_visitor,
+                                  std::forward<PostVisitor>(visitor));
+}
+
 template <typename Graph, typename Visitor>
 void visit_rpo(Graph &&graph, const typename GraphTraits<Graph>::NodeId &entry, Visitor &&visitor) {
   using Traits = GraphTraits<Graph>;
@@ -115,9 +129,8 @@ void visit_rpo(Graph &&graph, const typename GraphTraits<Graph>::NodeId &entry, 
 
   std::vector<typename Traits::NodeId> postorder;
   auto inserter = std::back_inserter(postorder);
-  visit_dfs(
-      std::forward<Graph>(graph), entry, [](const NodeId &dummy) { (void)dummy; },
-      [&inserter](const NodeId &node) { *inserter = node; });
+  visit_dfs_postorder(std::forward<Graph>(graph), entry,
+                      [&inserter](const NodeId &node) { *inserter = node; });
 
   std::for_each(postorder.rbegin(), postorder.rend(), std::forward<Visitor>(visitor));
 }

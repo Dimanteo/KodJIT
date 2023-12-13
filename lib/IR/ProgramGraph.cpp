@@ -22,6 +22,7 @@ BasicBlock *ProgramGraph::create_basic_block() {
 }
 
 void ProgramGraph::build_dom_tree() {
+  assert(m_entry != nullptr && "Entry block must be specified");
   if (!m_dom_tree.empty()) {
     m_dom_tree.clear();
   }
@@ -30,8 +31,9 @@ void ProgramGraph::build_dom_tree() {
 }
 
 void ProgramGraph::build_loop_tree() {
+  assert(m_entry != nullptr && "Entry block must be specified");
   if (m_dom_tree.empty()) {
-    build_loop_tree();
+    build_dom_tree();
   }
 
   // Collect backedges
@@ -65,7 +67,7 @@ void ProgramGraph::build_loop_tree() {
   // Get headers in post order.
   std::vector<BasicBlock *> post_order;
   auto inserter = std::back_inserter(post_order);
-  visit_dfs(*this, m_entry, [&inserter, this](BasicBlock *bb) {
+  visit_dfs_postorder(*this, m_entry, [&inserter, this](BasicBlock *bb) {
     if (m_loop_tree.contains(bb->get_id())) {
       *inserter = bb;
     }
@@ -77,32 +79,24 @@ void ProgramGraph::build_loop_tree() {
     marked.resize(m_bb_arena.size(), false);
     marked[header->get_id()] = true;
     auto &&loop = m_loop_tree.get(header->get_id());
-
-    auto loop_adder = [this, header, &marked, &loop](BasicBlock *bb) {
-      if (marked[bb->get_id()]) {
-        return false;
-      }
-      marked[bb->get_id()] = true;
-      if (bb->is_in_loop() && bb->get_owner_loop_header() != header) {
-        m_loop_tree.link(header->get_id(), bb->get_owner_loop_header()->get_id());
-      } else if (!bb->is_in_loop()) {
-        bb->set_owner_loop_header(header);
-        loop.add_block(bb);
-      }
-      return true;
-    };
-
     if (!loop.is_reducible()) {
       continue;
     }
     for (auto &&latch : loop.get_latches()) {
-      visit_dfs_conditional</*Backward=*/ true>(*this, latch, [this, &loop_adder, header](BasicBlock *backedge_src) {
-        if (backedge_src == header) {
-          return false;
-        }
-        visit_dfs_conditional(*this, backedge_src, loop_adder);
-        return true;
-      });
+      visit_dfs_conditional</*Backward=*/true>(
+          *this, latch, [this, &marked, &loop, header](BasicBlock *backedge_src) {
+            if (marked[backedge_src->get_id()]) {
+              return false;
+            }
+            marked[backedge_src->get_id()] = true;
+            if (backedge_src->is_in_loop() && backedge_src->get_owner_loop_header() != header) {
+              m_loop_tree.link(header->get_id(), backedge_src->get_owner_loop_header()->get_id());
+            } else if (!backedge_src->is_in_loop()) {
+              backedge_src->set_owner_loop_header(header);
+              loop.add_block(backedge_src);
+            }
+            return true;
+          });
     }
   }
 
