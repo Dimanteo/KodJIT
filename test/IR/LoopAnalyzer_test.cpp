@@ -245,6 +245,263 @@ TEST(LoopAnalyzerTests, loop_ex3) {
   dump_graph_and_loop_tree(graph, "loop_ex3");
 }
 
+TEST(LoopAnalyzerTests, loop_ex4) {
+  /*
+            ┌───┐
+            │ 1 │
+            └───┘
+              │
+              │
+              ▼
+  ┌───┐     ┌───┐
+  │ 3 │ ◀── │ 2 │
+  └───┘     └───┘
+    │         │
+    │         │
+    │         ▼
+    │       ┌───┐     ┌───┐
+    │       │ 6 │ ──▶ │ 7 │
+    │       └───┘     └───┘
+    │         │         │
+    │         │         │
+    │         ▼         │
+    │       ┌───┐       │
+    │       │ 5 │       │
+    │       └───┘       │
+    │         │         │
+    │         │         │
+    │         ▼         │
+    │       ┌───┐       │
+    └─────▶ │ 4 │ ◀─────┘
+            └───┘
+  */
+  ProgramGraph graph;
+  IRBuilder builder(graph);
+
+  BasicBlock *bb1 = graph.create_basic_block();
+  BasicBlock *bb2 = graph.create_basic_block();
+  BasicBlock *bb3 = graph.create_basic_block();
+  BasicBlock *bb4 = graph.create_basic_block();
+  BasicBlock *bb5 = graph.create_basic_block();
+  BasicBlock *bb6 = graph.create_basic_block();
+  BasicBlock *bb7 = graph.create_basic_block();
+
+  builder.set_entry_point(bb1);
+
+  connect(bb1, bb2, builder);
+  connect(bb2, bb3, bb6, builder);
+  connect(bb3, bb4, builder);
+  connect(bb5, bb4, builder);
+  connect(bb6, bb5, bb7, builder);
+  connect(bb7, bb4, builder);
+
+  graph.build_loop_tree();
+
+  ASSERT_EQ(graph.get_loop_tree().size(), 1);
+  for (auto &&bb : graph) {
+    ASSERT_FALSE(bb->is_in_loop());
+  }
+}
+
+TEST(LoopAnalyzerTests, loop_ex5) {
+  /*
+          ┌────┐
+          │ 1  │
+          └────┘
+            │
+            │
+            ▼
+          ┌────┐
+  ┌─────▶ │ 2  │ ─┐
+  │       └────┘  │
+  │         │     │
+  │         │     │
+  │         ▼     │
+  │       ┌────┐  │
+  │       │ 4  │  │
+  │       └────┘  │
+  │         │     │
+  │         │     │
+  │         ▼     │
+  │       ┌────┐  │
+  │    ┌▶ │ 3  │ ◀┘
+  │    │  └────┘
+  │    │    │
+  │    │    │
+  │    │    ▼
+  │    │  ┌────┐
+  │    └─ │ 5  │
+  │       └────┘
+  │         │
+  │         │
+  │         ▼
+  │       ┌────┐
+  │       │ 6  │ ◀┐
+  │       └────┘  │
+  │         │     │
+  │         │     │
+  │         ▼     │
+  │       ┌────┐  │
+  │       │ 7  │ ─┘
+  │       └────┘
+  │         │
+  │         │
+  │         ▼
+┌───┐     ┌────┐
+│ 9 │ ◀── │ 8  │
+└───┘     └────┘
+            │
+            │
+            ▼
+          ┌────┐
+          │ 10 │
+          └────┘
+            │
+            │
+            ▼
+          ┌────┐
+          │ 11 │
+          └────┘
+  */
+  ProgramGraph graph;
+  IRBuilder builder(graph);
+
+  BasicBlock *bb1 = graph.create_basic_block();
+  BasicBlock *bb2 = graph.create_basic_block();
+  BasicBlock *bb3 = graph.create_basic_block();
+  BasicBlock *bb4 = graph.create_basic_block();
+  BasicBlock *bb5 = graph.create_basic_block();
+  BasicBlock *bb6 = graph.create_basic_block();
+  BasicBlock *bb7 = graph.create_basic_block();
+  BasicBlock *bb8 = graph.create_basic_block();
+  BasicBlock *bb9 = graph.create_basic_block();
+  BasicBlock *bb10 = graph.create_basic_block();
+  BasicBlock *bb11 = graph.create_basic_block();
+
+  builder.set_entry_point(bb1);
+
+  connect(bb1, bb2, builder);
+  connect(bb2, bb3, bb4, builder);
+  connect(bb3, bb5, builder);
+  connect(bb4, bb3, builder);
+  connect(bb5, bb3, bb6, builder);
+  connect(bb6, bb7, builder);
+  connect(bb6, bb7, builder);
+  connect(bb7, bb6, bb8, builder);
+  connect(bb8, bb9, bb10, builder);
+  connect(bb9, bb2, builder);
+  connect(bb10, bb11, builder);
+
+  graph.build_loop_tree();
+
+  ASSERT_EQ(graph.get_loop_tree().size(), 4);
+
+  ASSERT_FALSE(bb1->is_in_loop());
+  ASSERT_FALSE(bb10->is_in_loop());
+  ASSERT_FALSE(bb11->is_in_loop());
+
+  auto &loop_tree = graph.get_loop_tree();
+  ASSERT_TRUE(loop_tree.contains(bb2->get_id()));
+  verify_loop(loop_tree.get(bb2->get_id()), {bb2, bb4, bb8, bb9});
+  ASSERT_TRUE(loop_tree.contains(bb3->get_id()));
+  verify_loop(loop_tree.get(bb3->get_id()), {bb3, bb5});
+  ASSERT_TRUE(loop_tree.contains(bb6->get_id()));
+  verify_loop(loop_tree.get(bb6->get_id()), {bb6, bb7});
+
+  dump_graph_and_loop_tree(graph, "loop_ex5");
+}
+
+TEST(LoopAnalyzerTests, loop_ex6) {
+  /*
+
+       ┌────────────────────────┐
+       │                        │
+       │                 ┌───┐  │
+       │                 │ 1 │  │
+       │                 └───┘  │
+       │                   │    │
+       │                   │    │
+       │                   ▼    │
+     ┌───┐     ┌───┐     ┌───┐  │
+     │ 6 │ ◀── │ 5 │ ◀── │ 2 │ ◀┘
+     └───┘     └───┘     └───┘
+       │         │         │
+       │         │         │
+       ▼         │         ▼
+     ┌───┐       │       ┌───┐
+  ┌─ │ 8 │       │       │ 3 │ ◀┐
+  │  └───┘       │       └───┘  │
+  │    │         │         │    │
+  │    │         │         │    │
+  │    │         │         ▼    │
+  │    │         │       ┌───┐  │
+  │    │         └─────▶ │ 4 │  │
+  │    │                 └───┘  │
+  │    │                   │    │
+  │    │                   │    │
+  │    │                   ▼    │
+  │    │                 ┌───┐  │
+  │    └───────────────▶ │ 7 │ ─┘
+  │                      └───┘
+  │                        │
+  │                        │
+  │                        ▼
+  │                      ┌───┐
+  │                      │ 9 │
+  │                      └───┘
+  │                        ▲
+  └────────────────────────┘
+  */
+  ProgramGraph graph;
+  IRBuilder builder(graph);
+
+  BasicBlock *bb1 = graph.create_basic_block();
+  BasicBlock *bb2 = graph.create_basic_block();
+  BasicBlock *bb3 = graph.create_basic_block();
+  BasicBlock *bb4 = graph.create_basic_block();
+  BasicBlock *bb5 = graph.create_basic_block();
+  BasicBlock *bb6 = graph.create_basic_block();
+  BasicBlock *bb7 = graph.create_basic_block();
+  BasicBlock *bb8 = graph.create_basic_block();
+  BasicBlock *bb9 = graph.create_basic_block();
+
+  builder.set_entry_point(bb1);
+
+  connect(bb1, bb2, builder);
+  connect(bb2, bb3, bb5, builder);
+  connect(bb3, bb4, builder);
+  connect(bb4, bb7, builder);
+  connect(bb5, bb4, bb6, builder);
+  connect(bb6, bb2, bb8, builder);
+  connect(bb7, bb3, bb9, builder);
+  connect(bb8, bb7, bb9, builder);
+
+  graph.build_loop_tree();
+
+  ASSERT_EQ(graph.get_loop_tree().size(), 3);
+
+  ASSERT_FALSE(bb1->is_in_loop());
+  ASSERT_FALSE(bb8->is_in_loop());
+  ASSERT_FALSE(bb9->is_in_loop());
+
+  auto &loop_tree = graph.get_loop_tree();
+  ASSERT_TRUE(loop_tree.contains(bb2->get_id()));
+  verify_loop(loop_tree.get(bb2->get_id()), {bb2, bb5, bb6});
+
+  BasicBlock *irred_header = nullptr;
+  for (auto &&bb : {bb3, bb4, bb7}) {
+    if (loop_tree.contains(bb->get_id())) {
+      irred_header = bb;
+    }
+  }
+  ASSERT_NE(irred_header, nullptr);
+
+  auto &irr_loop = loop_tree.get(irred_header->get_id());
+  ASSERT_FALSE(irr_loop.is_reducible());
+
+  dump_graph_and_loop_tree(graph, "loop_ex6");
+}
+
 } // namespace Tests
 
 } // namespace koda
