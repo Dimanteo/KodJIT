@@ -163,8 +163,6 @@ TEST(IRTests, factorial) {
   res->add_option(entry_bb, res_init);
   res->add_option(loop_bb, res_loop);
 
-  prog.build_loop_tree();
-
   dumpCFG("factorial.dot", prog);
 }
 

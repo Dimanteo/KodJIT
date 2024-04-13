@@ -22,19 +22,6 @@ void IRPrinter::print_prog_graph(ProgramGraph &graph) {
   };
   std::for_each(graph.begin(), graph.end(), bb_print);
 
-  if (!graph.get_loop_tree().empty()) {
-    size_t loop_cnt = 1;
-    auto &&loop_tree = graph.get_loop_tree();
-    for (auto loop : graph.get_loop_tree()) {
-      m_out_stream << "subgraph cluster_" << loop_cnt++ << " {\n\tlabel = \"loop " << loop.first
-                   << "\";\n\tcolor=blue\n";
-      for (auto &&bb : loop_tree.get(loop.first)) {
-        m_out_stream << "\t\"" << ProgramGraph::node_to_string(graph, bb) << "\";\n";
-      }
-      m_out_stream << "}\n";
-    }
-  }
-
   m_out_stream << GraphPrinter::make_dot_graph(graph, graph.get_entry());
 
   m_out_stream << "}";

@@ -1,9 +1,7 @@
 #pragma once
 
 #include "IR/IROperand.hpp"
-#include <DataStructures/DominatorTree.hpp>
 #include <DataStructures/Graph.hpp>
-#include <DataStructures/Tree.hpp>
 #include <IR/BasicBlock.hpp>
 #include <IR/Instruction.hpp>
 
@@ -25,51 +23,16 @@ public:
   OperandType get_type() const { return m_type; }
 };
 
-class LoopInfo {
-  bool m_is_reducible = true;
-
-  BasicBlock *m_header = nullptr;
-
-  std::vector<BasicBlock *> m_blocks{};
-
-  std::vector<BasicBlock *> m_latches{};
-
-public:
-  using iterator = std::vector<BasicBlock *>::iterator;
-
-  BasicBlock *get_header() const { return m_header; }
-
-  bool is_reducible() const { return m_is_reducible; }
-
-  void add_back_edge(BasicBlock *latch, BasicBlock *header);
-
-  void set_reducible(bool is_reducible) { m_is_reducible = is_reducible; }
-
-  std::vector<BasicBlock *> &get_latches() { return m_latches; }
-
-  void add_block(BasicBlock *bb) {
-    m_blocks.push_back(bb);
-  }
-
-  iterator begin() { return m_blocks.begin(); }
-
-  iterator end() { return m_blocks.end(); }
-};
-
 class ProgramGraph final {
 public:
   using BasicBlockArena = std::vector<std::unique_ptr<BasicBlock>>;
   using iterator = BasicBlockArena::iterator;
   using BBPtr = std::unique_ptr<BasicBlock>;
-  using loop_id_t = bbid_t;
 
   // Graph traits
   using NodeId = BasicBlock *;
   using PredIterator = BasicBlock::PredIterator;
   using SuccIterator = BasicBlock::SuccIterator;
-
-  using DomsTree = DominatorTree<BasicBlock *>;
-  using LoopTree = Tree<bbid_t, LoopInfo>;
 
 private:
 
@@ -80,12 +43,6 @@ private:
   std::vector<Parameter> m_params{};
 
   BasicBlock *m_entry = nullptr;
-
-  DomsTree m_dom_tree{nullptr};
-
-  constexpr static loop_id_t ROOT_LOOP_ID = -1;
-  constexpr static loop_id_t NONE_LOOP_ID = -2;
-  LoopTree m_loop_tree{NONE_LOOP_ID};
 
 public:
   ProgramGraph() = default;
@@ -101,11 +58,13 @@ public:
     return inst_ptr;
   }
 
-  BasicBlock *get_bb(bbid_t id) { return m_bb_arena[id].get(); }
+  BasicBlock *get_bb(bbid_t id) const { return m_bb_arena[id].get(); }
 
   void set_entry(BasicBlock *bb) { m_entry = bb; }
 
   BasicBlock *get_entry() const { return m_entry; }
+
+  size_t size() const { return m_bb_arena.size(); }
 
   // Create program parameter of given type.
   // Return index of that parameter
@@ -124,14 +83,6 @@ public:
 
   iterator begin() { return m_bb_arena.begin(); }
   iterator end() { return m_bb_arena.end(); }
-
-  void build_dom_tree();
-
-  const DomsTree &get_dom_tree() const { return m_dom_tree; }
-
-  void build_loop_tree();
-
-  LoopTree &get_loop_tree() { return m_loop_tree; }
 
   // Graph traits
 

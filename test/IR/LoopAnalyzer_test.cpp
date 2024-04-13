@@ -1,3 +1,4 @@
+#include <Core/Analyses.hpp>
 #include <IR/IRBuilder.hpp>
 #include <IR/IRPrinter.hpp>
 #include <IR/ProgramGraph.hpp>
@@ -10,7 +11,9 @@ namespace koda {
 
 namespace Tests {
 
-void dump_graph_and_loop_tree(ProgramGraph &graph, std::string filename) {
+void dump_graph_and_loop_tree(ProgramGraph &graph,
+                              LoopTreeAnalysis::LoopTree &loop_tree,
+                              std::string filename) {
   std::ofstream dot_log(filename + ".dot", std::ios_base::out);
   IRPrinter printer(dot_log);
   printer.print_prog_graph(graph);
@@ -18,7 +21,7 @@ void dump_graph_and_loop_tree(ProgramGraph &graph, std::string filename) {
 
   dot_log.open(filename + "_LoopTree.dot", std::ios_base::out);
   dot_log << "digraph {\n";
-  for (auto &&loop_it : graph.get_loop_tree()) {
+  for (auto &&loop_it : loop_tree) {
     dot_log << "\"" << loop_it.first << "\" [shape=record,label=\"";
     dot_log << "head " << loop_it.first << "\\l Blocks";
     for (auto &&bb : loop_it.second.value()) {
@@ -30,7 +33,7 @@ void dump_graph_and_loop_tree(ProgramGraph &graph, std::string filename) {
     }
     dot_log << "\"];\n";
   }
-  dot_log << GraphPrinter::make_dot_graph(graph.get_loop_tree(), graph.get_loop_tree().get_root());
+  dot_log << GraphPrinter::make_dot_graph(loop_tree, loop_tree.get_root());
   dot_log << "}";
   dot_log.close();
 }
@@ -40,7 +43,8 @@ void connect(BasicBlock *from, BasicBlock *to, IRBuilder &builder) {
   builder.create_branch(to);
 }
 
-void connect(BasicBlock *from, BasicBlock *left, BasicBlock *right, IRBuilder &builder) {
+void connect(BasicBlock *from, BasicBlock *left, BasicBlock *right,
+             IRBuilder &builder) {
   builder.set_insert_point(from);
   auto dummy = builder.create_int_constant(10);
   builder.create_conditional_branch(CmpFlag::CMP_EQ, left, right, dummy, dummy);
@@ -61,7 +65,8 @@ void verify_loop(LoopInfo &loop, const std::vector<BasicBlock *> &ref) {
   }
   std::sort(actual_ids.begin(), actual_ids.end());
   std::sort(ref_ids.begin(), ref_ids.end());
-  ASSERT_TRUE(std::equal(actual_ids.begin(), actual_ids.end(), ref_ids.begin(), ref_ids.end()));
+  ASSERT_TRUE(std::equal(actual_ids.begin(), actual_ids.end(), ref_ids.begin(),
+                         ref_ids.end()));
 }
 
 TEST(LoopAnalyzerTests, loop_analyzer_ex1) {
@@ -104,24 +109,26 @@ TEST(LoopAnalyzerTests, loop_analyzer_ex1) {
   connect(D, E, builder);
   connect(E, B, builder);
 
-  graph.build_dom_tree();
+  DomsTreeAnalysis dom_analysis;
+  dom_analysis.run(graph);
 
-  auto &&tree = graph.get_dom_tree();
+  auto &&tree = dom_analysis.get();
 
   ASSERT_EQ(tree.get_parent(B), A);
   ASSERT_EQ(tree.get_parent(C), B);
   ASSERT_EQ(tree.get_parent(D), B);
   ASSERT_EQ(tree.get_parent(E), D);
 
-  graph.build_loop_tree();
-  auto &loop_tree = graph.get_loop_tree();
+  LoopTreeAnalysis loops;
+  loops.run(graph, tree);
+  auto &loop_tree = loops.get();
 
   ASSERT_EQ(loop_tree.size(), 2);
   ASSERT_FALSE(A->is_in_loop());
   ASSERT_FALSE(C->is_in_loop());
   verify_loop(loop_tree.get(B->get_id()), {B, D, E});
 
-  dump_graph_and_loop_tree(graph, "loop_ex1");
+  dump_graph_and_loop_tree(graph, loop_tree, "loop_ex1");
 }
 
 TEST(LoopAnalyzerTests, loop_ex2) {
@@ -156,18 +163,21 @@ TEST(LoopAnalyzerTests, loop_ex2) {
   connect(D, E, F, builder);
   connect(E, B, builder);
 
-  graph.build_loop_tree();
+  DomsTreeAnalysis dom_analysis;
+  dom_analysis.run(graph);
+  LoopTreeAnalysis loops;
+  loops.run(graph, dom_analysis.get());
+  auto &loop_tree = loops.get();
 
   ASSERT_FALSE(A->is_in_loop());
   ASSERT_FALSE(F->is_in_loop());
 
-  auto &loop_tree = graph.get_loop_tree();
   ASSERT_TRUE(loop_tree.contains(B->get_id()));
   ASSERT_EQ(loop_tree.size(), 2);
 
   verify_loop(loop_tree.get(B->get_id()), {B, C, D, E});
 
-  dump_graph_and_loop_tree(graph, "loop_ex2");
+  dump_graph_and_loop_tree(graph, loop_tree, "loop_ex2");
 }
 
 TEST(LoopAnalyzerTests, loop_ex3) {
@@ -229,11 +239,14 @@ TEST(LoopAnalyzerTests, loop_ex3) {
   connect(G, H, B, builder);
   connect(H, A, builder);
 
-  graph.build_loop_tree();
+  DomsTreeAnalysis dom_analysis;
+  dom_analysis.run(graph);
+  LoopTreeAnalysis loops;
+  loops.run(graph, dom_analysis.get());
+  auto &loop_tree = loops.get();
 
   ASSERT_FALSE(E->is_in_loop());
 
-  auto &loop_tree = graph.get_loop_tree();
   ASSERT_EQ(loop_tree.size(), 3);
 
   ASSERT_TRUE(loop_tree.contains(A->get_id()));
@@ -242,7 +255,7 @@ TEST(LoopAnalyzerTests, loop_ex3) {
   verify_loop(loop_tree.get(A->get_id()), {A, H});
   verify_loop(loop_tree.get(B->get_id()), {B, C, D, F, G});
 
-  dump_graph_and_loop_tree(graph, "loop_ex3");
+  dump_graph_and_loop_tree(graph, loop_tree, "loop_ex3");
 }
 
 TEST(LoopAnalyzerTests, loop_ex4) {
@@ -295,9 +308,13 @@ TEST(LoopAnalyzerTests, loop_ex4) {
   connect(bb6, bb5, bb7, builder);
   connect(bb7, bb4, builder);
 
-  graph.build_loop_tree();
+  DomsTreeAnalysis dom_analysis;
+  dom_analysis.run(graph);
+  LoopTreeAnalysis loops;
+  loops.run(graph, dom_analysis.get());
+  auto &loop_tree = loops.get();
 
-  ASSERT_EQ(graph.get_loop_tree().size(), 1);
+  ASSERT_EQ(loop_tree.size(), 1);
   for (auto &&bb : graph) {
     ASSERT_FALSE(bb->is_in_loop());
   }
@@ -392,15 +409,18 @@ TEST(LoopAnalyzerTests, loop_ex5) {
   connect(bb9, bb2, builder);
   connect(bb10, bb11, builder);
 
-  graph.build_loop_tree();
+  DomsTreeAnalysis dom_analysis;
+  dom_analysis.run(graph);
+  LoopTreeAnalysis loops;
+  loops.run(graph, dom_analysis.get());
+  auto &loop_tree = loops.get();
 
-  ASSERT_EQ(graph.get_loop_tree().size(), 4);
+  ASSERT_EQ(loop_tree.size(), 4);
 
   ASSERT_FALSE(bb1->is_in_loop());
   ASSERT_FALSE(bb10->is_in_loop());
   ASSERT_FALSE(bb11->is_in_loop());
 
-  auto &loop_tree = graph.get_loop_tree();
   ASSERT_TRUE(loop_tree.contains(bb2->get_id()));
   verify_loop(loop_tree.get(bb2->get_id()), {bb2, bb4, bb8, bb9});
   ASSERT_TRUE(loop_tree.contains(bb3->get_id()));
@@ -408,7 +428,7 @@ TEST(LoopAnalyzerTests, loop_ex5) {
   ASSERT_TRUE(loop_tree.contains(bb6->get_id()));
   verify_loop(loop_tree.get(bb6->get_id()), {bb6, bb7});
 
-  dump_graph_and_loop_tree(graph, "loop_ex5");
+  dump_graph_and_loop_tree(graph, loop_tree, "loop_ex5");
 }
 
 TEST(LoopAnalyzerTests, loop_ex6) {
@@ -476,15 +496,18 @@ TEST(LoopAnalyzerTests, loop_ex6) {
   connect(bb7, bb3, bb9, builder);
   connect(bb8, bb7, bb9, builder);
 
-  graph.build_loop_tree();
+  DomsTreeAnalysis dom_analysis;
+  dom_analysis.run(graph);
+  LoopTreeAnalysis loops;
+  loops.run(graph, dom_analysis.get());
+  auto &loop_tree = loops.get();
 
-  ASSERT_EQ(graph.get_loop_tree().size(), 3);
+  ASSERT_EQ(loop_tree.size(), 3);
 
   ASSERT_FALSE(bb1->is_in_loop());
   ASSERT_FALSE(bb8->is_in_loop());
   ASSERT_FALSE(bb9->is_in_loop());
 
-  auto &loop_tree = graph.get_loop_tree();
   ASSERT_TRUE(loop_tree.contains(bb2->get_id()));
   verify_loop(loop_tree.get(bb2->get_id()), {bb2, bb5, bb6});
 
@@ -499,7 +522,7 @@ TEST(LoopAnalyzerTests, loop_ex6) {
   auto &irr_loop = loop_tree.get(irred_header->get_id());
   ASSERT_FALSE(irr_loop.is_reducible());
 
-  dump_graph_and_loop_tree(graph, "loop_ex6");
+  dump_graph_and_loop_tree(graph, loop_tree, "loop_ex6");
 }
 
 } // namespace Tests

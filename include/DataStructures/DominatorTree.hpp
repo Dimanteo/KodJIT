@@ -62,6 +62,7 @@ template <typename Graph> class DominatorTreeBuilder final {
       assert(node != m_tree->m_none && "None node not allowed in input set");
       if (path.find(node) == path.end()) {
         auto res = m_tree->set_domination(dominator, node);
+        (void)res;
         assert(res && "Try to add invalid relation in Dom Tree");
       }
     }
