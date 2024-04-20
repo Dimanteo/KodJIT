@@ -1,10 +1,14 @@
-#include "Core/Analyses.hpp"
+#include "Core/Analysis.hpp"
 
 #include "Core/Compiler.h"
 #include "DataStructures/Graph.hpp"
 #include "IR/ProgramGraph.hpp"
 
 namespace koda {
+
+LoopInfo::loop_id_t LoopInfo::get_id() const {
+  return m_header ? m_header->get_loop_id() : INVALID_LOOP_ID;
+}
 
 void RPOAnalysis::run(ProgramGraph &graph) {
   assert(graph.get_entry() != nullptr && "Entry block must be specified");
@@ -30,16 +34,15 @@ void LoopInfo::add_back_edge(BasicBlock *latch, BasicBlock *header) {
          "Back edge must lead to loop header");
   if (m_header == nullptr) {
     m_header = header;
-    m_blocks.push_back(header);
   }
   m_latches.push_back(latch);
-  m_blocks.push_back(latch);
 }
 
 void LoopTreeAnalysis::run(Compiler &comp) {
   auto &&doms = comp.get_or_create<DomsTreeAnalysis>(comp.graph());
   run(comp.graph(), doms.get());
 }
+
 void LoopTreeAnalysis::run(ProgramGraph &graph,
                            DomsTreeAnalysis::DomsTree &dom_tree) {
   assert(graph.get_entry() != nullptr && "Entry block must be specified");
@@ -70,8 +73,8 @@ void LoopTreeAnalysis::run(ProgramGraph &graph,
     loop.add_back_edge(latch, header);
     loop.set_reducible(loop.is_reducible() &&
                        dom_tree.is_dominator_of(header, latch));
-    header->set_owner_loop_header(header);
-    latch->set_owner_loop_header(header);
+    header->set_loop_id(header->get_id());
+    latch->set_loop_id(header->get_id());
   }
 
   // Get headers in post order.
@@ -86,50 +89,100 @@ void LoopTreeAnalysis::run(ProgramGraph &graph,
 
   // Populate loops
   for (auto &&header : post_order) {
-    marked.clear();
-    marked.resize(graph.size(), false);
-    marked[header->get_id()] = true;
     auto &&loop = m_loop_tree.get(header->get_id());
     if (!loop.is_reducible()) {
       continue;
     }
+    std::unordered_set<BasicBlock *> loop_blocks;
+    loop_blocks.insert(header);
     for (auto &&latch : loop.get_latches()) {
       visit_dfs_conditional</*Backward=*/true>(
           graph, latch,
-          [this, &marked, &loop, header](BasicBlock *backedge_src) {
-            if (marked[backedge_src->get_id()]) {
+          [this, header, &loop_blocks](BasicBlock *backedge_src) {
+            if (loop_blocks.find(backedge_src) != loop_blocks.end()) {
               return false;
             }
-            marked[backedge_src->get_id()] = true;
+            loop_blocks.insert(backedge_src);
             if (backedge_src->is_in_loop() &&
-                backedge_src->get_owner_loop_header() != header) {
-              m_loop_tree.link(header->get_id(),
-                               backedge_src->get_owner_loop_header()->get_id());
+                backedge_src->get_loop_id() != header->get_id()) {
+              m_loop_tree.link(header->get_id(), backedge_src->get_loop_id());
             } else if (!backedge_src->is_in_loop()) {
-              backedge_src->set_owner_loop_header(header);
-              loop.add_block(backedge_src);
+              backedge_src->set_loop_id(header->get_id());
             }
             return true;
           });
+      // Put blocks inside loop in DFS order
+      visit_dfs_conditional(graph, header, [&loop_blocks, &loop](BasicBlock *bb) {
+        if (loop_blocks.find(bb) == loop_blocks.end()) {
+          return false;
+        }
+        loop.add_block(bb);
+        return true;
+      });
     }
   }
 
   // Build tree
-  m_loop_tree.insert(ROOT_LOOP_ID);
-  m_loop_tree.set_root(ROOT_LOOP_ID);
-  auto &root_loop = m_loop_tree.get(ROOT_LOOP_ID);
+  m_loop_tree.insert(LoopInfo::NIL_LOOP_ID);
+  m_loop_tree.set_root(LoopInfo::NIL_LOOP_ID);
+  auto &root_loop = m_loop_tree.get(LoopInfo::NIL_LOOP_ID);
   root_loop.set_reducible(false);
   for (auto &&loop : m_loop_tree) {
     auto loop_id = loop.first;
-    if (loop_id != ROOT_LOOP_ID && !m_loop_tree.has_parent(loop_id)) {
-      m_loop_tree.link(ROOT_LOOP_ID, loop_id);
+    if (loop_id != LoopInfo::NIL_LOOP_ID && !m_loop_tree.has_parent(loop_id)) {
+      m_loop_tree.link(LoopInfo::NIL_LOOP_ID, loop_id);
     }
   }
   for (auto &&bb : graph) {
-    if (!bb->is_in_loop()) {
-      root_loop.add_block(bb.get());
+    if (!bb.is_in_loop()) {
+      root_loop.add_block(&bb);
     }
   }
 }
+
+const LoopInfo &LoopTreeAnalysis::get_loop(const BasicBlock &bb) const {
+  return m_loop_tree.get(bb.get_loop_id());
+}
+
+void LinearOrder::linearize_graph(Compiler &comp) {
+  ProgramGraph &graph = comp.graph();
+  const auto &loops = comp.get_or_create<LoopTreeAnalysis>(comp);
+  const auto &rpo = comp.get_or_create<RPOAnalysis>(graph);
+  std::vector<bool> visited(graph.size(), false);
+  for (auto &&bb_id : rpo) {
+    if (visited[bb_id]) {
+      continue;
+    }
+    BasicBlock *bb = graph.get_bb(bb_id);
+    if (bb->is_loop_header() && loops.get_loop(*bb).is_reducible()) {
+      linearize_loop(*bb, loops, visited);
+    } else {
+      m_linear_order.push_back(bb);
+      visited[bb_id] = true;
+    }
+  }
+}
+
+void LinearOrder::linearize_loop(const BasicBlock &header,
+                                 const LoopTreeAnalysis &loops,
+                                 std::vector<bool> &visited) {
+  auto &&loop = loops.get_loop(header);
+  for (auto &&bb : loop) {
+    if (visited[bb->get_id()]) {
+      continue;
+    }
+
+    // Inner loops
+    if (bb->is_loop_header() && bb->get_loop_id() != loop.get_id()) {
+      linearize_loop(*bb, loops, visited);
+      continue;
+    }
+
+    visited[bb->get_id()] = true;
+    m_linear_order.push_back(bb);
+  }
+}
+
+void LinearOrder::run(Compiler &comp) { linearize_graph(comp); }
 
 } // namespace koda

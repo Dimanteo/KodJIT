@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Core/Analyses.hpp>
+#include <Core/Analysis.hpp>
 #include <Core/Passes.hpp>
 #include <DataStructures/DominatorTree.hpp>
 #include <IR/ProgramGraph.hpp>
@@ -18,8 +18,10 @@ class Compiler final {
 
   LoopTreeAnalysis m_loop_tree;
 
+  LinearOrder m_linear_order;
+
 public:
-  Compiler();
+  Compiler() = default;
   Compiler(const Compiler &Compiler) = delete;
   Compiler(Compiler &&) = delete;
   Compiler &operator=(const Compiler &Compiler) = delete;
@@ -57,6 +59,9 @@ template <> inline DomsTreeAnalysis &Compiler::get<DomsTreeAnalysis>() {
 }
 template <> inline LoopTreeAnalysis &Compiler::get<LoopTreeAnalysis>() {
   return m_loop_tree;
+}
+template <> inline LinearOrder &Compiler::get<LinearOrder>() {
+  return m_linear_order;
 }
 
 } // namespace koda

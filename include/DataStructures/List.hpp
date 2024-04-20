@@ -67,7 +67,9 @@ public:
 
   explicit IntrusiveListIterator(reference node) : m_node_ptr(&node) {}
 
-  [[nodiscard]] reference operator*() const noexcept { return *static_cast<pointer>(m_node_ptr); }
+  [[nodiscard]] reference operator*() const noexcept {
+    return *static_cast<pointer>(m_node_ptr);
+  }
 
   IntrusiveListIterator &operator++() noexcept {
     m_node_ptr = static_cast<pointer>(m_node_ptr->get_next());
@@ -91,24 +93,31 @@ public:
     return tmp;
   }
 
-  [[nodiscard]] pointer operator->() const noexcept { return static_cast<pointer>(m_node_ptr); }
+  [[nodiscard]] pointer operator->() const noexcept {
+    return static_cast<pointer>(m_node_ptr);
+  }
 
-  bool is_equal(IntrusiveListIterator &other) const noexcept { return m_node_ptr == other.m_node_ptr; }
+  bool is_equal(IntrusiveListIterator &other) const noexcept {
+    return m_node_ptr == other.m_node_ptr;
+  }
 };
 
 template <typename InNode>
-bool operator==(IntrusiveListIterator<InNode> lhs, IntrusiveListIterator<InNode> rhs) {
+bool operator==(IntrusiveListIterator<InNode> lhs,
+                IntrusiveListIterator<InNode> rhs) {
   return lhs.is_equal(rhs);
 }
 
 template <typename InNode>
-bool operator!=(IntrusiveListIterator<InNode> lhs, IntrusiveListIterator<InNode> rhs) {
+bool operator!=(IntrusiveListIterator<InNode> lhs,
+                IntrusiveListIterator<InNode> rhs) {
   return !(lhs == rhs);
 }
 
 } // namespace detailList
 
-// Container for intrusive list nodes. InNode must be derived from IntrusiveListNode.
+// Container for intrusive list nodes. InNode must be derived from
+// IntrusiveListNode.
 //
 template <class InNode> class IntrusiveList final {
 public:
@@ -156,7 +165,8 @@ private:
 
 public:
   using iterator = detailList::IntrusiveListIterator<InNode>;
-  using const_iterator = detailList::IntrusiveListIterator<std::add_const_t<InNode>>;
+  using const_iterator =
+      detailList::IntrusiveListIterator<std::add_const_t<InNode>>;
   using value_type = typename iterator::value_type;
   using pointer = typename iterator::pointer;
   using const_pointer = std::add_const_t<pointer>;
@@ -164,10 +174,14 @@ public:
   using const_reference = std::add_const_t<reference>;
 
   iterator begin() noexcept { return iterator{get_head()}; }
-  iterator end() noexcept { return iterator{static_cast<pointer>(InNode::NIL_NODE())}; }
+  iterator end() noexcept {
+    return iterator{static_cast<pointer>(InNode::NIL_NODE())};
+  }
 
-  const_iterator cbegin() const noexcept { return iterator{get_head()}; }
-  const_iterator cend() const noexcept { return iterator{static_cast<pointer>(InNode::NIL_NODE())}; }
+  const_iterator cbegin() const noexcept { return const_iterator{get_head()}; }
+  const_iterator cend() const noexcept {
+    return const_iterator{static_cast<pointer>(InNode::NIL_NODE())};
+  }
 
   void insert_tail(InNode *node) {
     assert(!InNode::is_nil(node) && "Invalid node passed as argument");
@@ -299,7 +313,9 @@ public:
 
   // Remove \p node from list.
   // \returns next node after removed one or NIL if node is last.
-  InNode *remove(InNode &node) { return reinterpret_cast<InNode *>(remove_impl(node)); }
+  InNode *remove(InNode &node) {
+    return reinterpret_cast<InNode *>(remove_impl(node));
+  }
 
   InNode *get_head() const { return reinterpret_cast<InNode *>(m_head); }
 

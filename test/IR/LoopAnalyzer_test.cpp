@@ -1,4 +1,4 @@
-#include <Core/Analyses.hpp>
+#include <Core/Analysis.hpp>
 #include <IR/IRBuilder.hpp>
 #include <IR/IRPrinter.hpp>
 #include <IR/ProgramGraph.hpp>
@@ -53,7 +53,6 @@ void connect(BasicBlock *from, BasicBlock *left, BasicBlock *right,
 void verify_loop(LoopInfo &loop, const std::vector<BasicBlock *> &ref) {
   for (auto &&bb : ref) {
     ASSERT_TRUE(bb->is_in_loop());
-    ASSERT_EQ(bb->get_owner_loop_header(), loop.get_header());
   }
 
   std::vector<bbid_t> ref_ids, actual_ids;
@@ -252,8 +251,8 @@ TEST(LoopAnalyzerTests, loop_ex3) {
   ASSERT_TRUE(loop_tree.contains(A->get_id()));
   ASSERT_TRUE(loop_tree.contains(B->get_id()));
 
-  verify_loop(loop_tree.get(A->get_id()), {A, H});
   verify_loop(loop_tree.get(B->get_id()), {B, C, D, F, G});
+  verify_loop(loop_tree.get(A->get_id()), {A, B, C, D, F, G, H});
 
   dump_graph_and_loop_tree(graph, loop_tree, "loop_ex3");
 }
@@ -316,7 +315,7 @@ TEST(LoopAnalyzerTests, loop_ex4) {
 
   ASSERT_EQ(loop_tree.size(), 1);
   for (auto &&bb : graph) {
-    ASSERT_FALSE(bb->is_in_loop());
+    ASSERT_FALSE(bb.is_in_loop());
   }
 }
 
@@ -422,7 +421,8 @@ TEST(LoopAnalyzerTests, loop_ex5) {
   ASSERT_FALSE(bb11->is_in_loop());
 
   ASSERT_TRUE(loop_tree.contains(bb2->get_id()));
-  verify_loop(loop_tree.get(bb2->get_id()), {bb2, bb4, bb8, bb9});
+  verify_loop(loop_tree.get(bb2->get_id()),
+              {bb2, bb4, bb3, bb5, bb6, bb7, bb8, bb9});
   ASSERT_TRUE(loop_tree.contains(bb3->get_id()));
   verify_loop(loop_tree.get(bb3->get_id()), {bb3, bb5});
   ASSERT_TRUE(loop_tree.contains(bb6->get_id()));

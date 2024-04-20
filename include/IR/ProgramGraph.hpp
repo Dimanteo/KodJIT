@@ -26,7 +26,6 @@ public:
 class ProgramGraph final {
 public:
   using BasicBlockArena = std::vector<std::unique_ptr<BasicBlock>>;
-  using iterator = BasicBlockArena::iterator;
   using BBPtr = std::unique_ptr<BasicBlock>;
 
   // Graph traits
@@ -34,8 +33,44 @@ public:
   using PredIterator = BasicBlock::PredIterator;
   using SuccIterator = BasicBlock::SuccIterator;
 
-private:
+  class BasicBlockIterator {
+    using BaseIterator = BasicBlockArena::iterator;
+    using value_type = BasicBlock;
+    using pointer = value_type *;
+    using reference = value_type &;
+    using difference_type = BasicBlockArena::iterator::difference_type;
+    using iterator_category = std::bidirectional_iterator_tag;
 
+    BaseIterator iter;
+
+  public:
+    BasicBlockIterator(BaseIterator iter) : iter(iter) {}
+    reference operator*() const noexcept { return *iter->get(); }
+    BasicBlockIterator &operator++() noexcept {
+      iter++;
+      return *this;
+    }
+    BasicBlockIterator &operator++(int) noexcept {
+      ++iter;
+      return *this;
+    }
+    BasicBlockIterator &operator--() noexcept {
+      iter--;
+      return *this;
+    }
+    BasicBlockIterator &operator--(int) noexcept {
+      --iter;
+      return *this;
+    }
+    pointer operator->() const noexcept { return iter->get(); }
+    bool is_equal(const BasicBlockIterator &other) const noexcept {
+      return this->iter == other.iter;
+    }
+  };
+
+  using iterator = BasicBlockIterator;
+
+private:
   BasicBlockArena m_bb_arena{};
 
   std::vector<std::unique_ptr<Instruction>> m_inst_arena{};
@@ -51,7 +86,8 @@ public:
 
   BasicBlock *create_basic_block();
 
-  template <class InstT, typename... Args> InstT *create_instruction(Args &&...args) {
+  template <class InstT, typename... Args>
+  InstT *create_instruction(Args &&...args) {
     instid_t id = m_inst_arena.size();
     auto inst_ptr = new InstT(id, std::forward<Args>(args)...);
     m_inst_arena.emplace_back(inst_ptr);
@@ -81,12 +117,13 @@ public:
 
   size_t get_num_params() const { return m_params.size(); }
 
-  iterator begin() { return m_bb_arena.begin(); }
-  iterator end() { return m_bb_arena.end(); }
+  iterator begin() { return BasicBlockIterator(m_bb_arena.begin()); }
+  iterator end() { return BasicBlockIterator(m_bb_arena.end()); }
 
   // Graph traits
 
-  static PredIterator pred_begin([[maybe_unused]] ProgramGraph &owner, NodeId node) {
+  static PredIterator pred_begin([[maybe_unused]] ProgramGraph &owner,
+                                 NodeId node) {
     return node->pred_begin();
   }
   static PredIterator pred_end(ProgramGraph &owner, NodeId node) {
@@ -109,5 +146,15 @@ public:
     return std::to_string(reinterpret_cast<uint64_t>(node));
   }
 };
+
+inline bool operator==(const ProgramGraph::BasicBlockIterator &lhs,
+                       const ProgramGraph::BasicBlockIterator &rhs) {
+  return lhs.is_equal(rhs);
+}
+
+inline bool operator!=(const ProgramGraph::BasicBlockIterator &lhs,
+                       const ProgramGraph::BasicBlockIterator &rhs) {
+  return !(lhs == rhs);
+}
 
 }; // namespace koda

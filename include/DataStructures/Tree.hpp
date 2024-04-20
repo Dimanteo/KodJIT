@@ -101,7 +101,7 @@ public:
 
   const Key m_none;
 
-  Tree(Key none) : m_none(none) {}
+  Tree(Key none) : m_root(none), m_none(none) {}
 
   bool empty() const { return m_tree.empty(); }
 

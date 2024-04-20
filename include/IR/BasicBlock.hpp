@@ -1,5 +1,6 @@
 #pragma once
 
+#include <Core/LoopInfo.hpp>
 #include <DataStructures/List.hpp>
 #include <IR/IROperand.hpp>
 #include <IR/IRTypes.hpp>
@@ -20,9 +21,10 @@ public:
   using const_iterator = InstructionList::const_iterator;
   using PredIterator = BBVector::iterator;
   using SuccIterator = BBVector::iterator;
+  using loop_id_t = LoopInfo::loop_id_t;
 
 private:
-  bbid_t m_id;
+  bbid_t m_id = INVALID_BB;
 
   InstructionList m_instructions;
 
@@ -33,7 +35,7 @@ private:
 
   ProgramGraph *m_graph = nullptr;
 
-  BasicBlock *m_loop_header = nullptr;
+  loop_id_t m_loop_id = LoopInfo::NIL_LOOP_ID;
 
   enum SuccessorIdx : unsigned { FALSE_IDX = 0, UNCOND_IDX = 0, TRUE_IDX = 1 };
 
@@ -87,15 +89,19 @@ public:
 
   OperandType get_type() const override { return OperandType::LABEL; }
 
-  bool is_in_loop() { return  m_loop_header != nullptr; }
+  bool is_in_loop() const { return m_loop_id != INVALID_BB; }
 
-  void set_owner_loop_header(BasicBlock *header) { m_loop_header = header; }
+  bool is_loop_header() const { return m_loop_id == m_id; }
 
-  BasicBlock *get_owner_loop_header() const { return m_loop_header; }
+  void set_loop_id(loop_id_t loop_id) { m_loop_id = loop_id; }
+
+  loop_id_t get_loop_id() const { return m_loop_id; }
 
   // Basic block iterators
   iterator begin() noexcept { return m_instructions.begin(); }
   iterator end() noexcept { return m_instructions.end(); }
+  const_iterator begin() const noexcept { return m_instructions.cbegin(); }
+  const_iterator end() const noexcept { return m_instructions.cend(); }
 
   SuccIterator succ_begin() { return m_successors.begin(); }
   SuccIterator succ_end() { return m_successors.end(); }

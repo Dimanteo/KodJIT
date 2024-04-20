@@ -5,6 +5,7 @@
 namespace koda {
 
 using bbid_t = long long int;
+constexpr bbid_t INVALID_BB = -1;
 using instid_t = size_t;
 
 enum InstOpcode : unsigned {
@@ -19,8 +20,8 @@ inline constexpr bool is_terminator_opcode(InstOpcode opc) {
 
 inline constexpr const char *inst_opc_to_str(InstOpcode opc) {
   switch (opc) {
-#define INAME_DEF(name, str)                                                                                 \
-  case INST_##name:                                                                                          \
+#define INAME_DEF(name, str)                                                   \
+  case INST_##name:                                                            \
     return #str;
 #include "IRInstEnum.def"
 #undef INAME_DEF

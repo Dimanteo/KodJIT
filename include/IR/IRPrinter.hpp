@@ -16,7 +16,7 @@ public:
 
   void print_prog_graph(ProgramGraph &graph);
 
-  void print_block(BasicBlock &bb);
+  void print_block(const BasicBlock &bb);
 };
 
 } // namespace koda

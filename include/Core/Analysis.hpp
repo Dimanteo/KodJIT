@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/LoopInfo.hpp"
 #include "DataStructures/DominatorTree.hpp"
 #include "DataStructures/Tree.hpp"
 #include "IR/BasicBlock.hpp"
@@ -33,6 +34,8 @@ public:
   std::vector<bbid_t> &blocks() { return m_rpo; }
   auto begin() { return m_rpo.begin(); }
   auto end() { return m_rpo.end(); }
+  auto begin() const { return m_rpo.begin(); }
+  auto end() const { return m_rpo.end(); }
 };
 
 struct DomsTreeAnalysis : public AnalysisBase {
@@ -48,51 +51,36 @@ public:
   DomsTree &get() { return m_dom_tree; }
 };
 
-class LoopInfo {
-  bool m_is_reducible = true;
-
-  BasicBlock *m_header = nullptr;
-
-  std::vector<BasicBlock *> m_blocks{};
-
-  std::vector<BasicBlock *> m_latches{};
-
-public:
-  using iterator = std::vector<BasicBlock *>::iterator;
-
-  BasicBlock *get_header() const { return m_header; }
-
-  bool is_reducible() const { return m_is_reducible; }
-
-  void add_back_edge(BasicBlock *latch, BasicBlock *header);
-
-  void set_reducible(bool is_reducible) { m_is_reducible = is_reducible; }
-
-  std::vector<BasicBlock *> &get_latches() { return m_latches; }
-
-  void add_block(BasicBlock *bb) { m_blocks.push_back(bb); }
-
-  iterator begin() { return m_blocks.begin(); }
-
-  iterator end() { return m_blocks.end(); }
-};
-
 struct LoopTreeAnalysis : public AnalysisBase {
 public:
-  using loop_id_t = bbid_t;
+  using loop_id_t = LoopInfo::loop_id_t;
   using LoopTree = Tree<loop_id_t, LoopInfo>;
-  constexpr static loop_id_t ROOT_LOOP_ID = -1;
-  constexpr static loop_id_t NONE_LOOP_ID = -2;
 
 private:
-  LoopTree m_loop_tree{NONE_LOOP_ID};
+  LoopTree m_loop_tree{LoopInfo::INVALID_LOOP_ID};
 
 public:
   virtual ~LoopTreeAnalysis() = default;
   void run(Compiler &comp);
   void run(ProgramGraph &graph, DomsTreeAnalysis::DomsTree &doms);
   LoopTree &get() { return m_loop_tree; }
+  const LoopTree &get() const { return m_loop_tree; }
+  const LoopInfo &get_loop(const BasicBlock &bb) const;
 };
 
+class LinearOrder : public AnalysisBase {
+
+  std::vector<BasicBlock *> m_linear_order;
+
+  void linearize_graph(Compiler &comp);
+  void linearize_loop(const BasicBlock &header, const LoopTreeAnalysis &loops,
+                      std::vector<bool> &visited);
+
+public:
+  virtual ~LinearOrder() = default;
+  void run(Compiler &comp);
+  auto begin() const { return m_linear_order.begin(); }
+  auto end() const { return m_linear_order.end(); }
+};
 
 } // namespace koda

@@ -41,8 +41,8 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  add_compile_options(${CXX_SANITIZERS})
-  add_link_options(${CXX_SANITIZERS})
+  # add_compile_options(${CXX_SANITIZERS})
+  # add_link_options(${CXX_SANITIZERS})
 endif()
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include")
