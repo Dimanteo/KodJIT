@@ -45,7 +45,8 @@ public:
 
 namespace detailList {
 
-template <class InNode> class IntrusiveListIterator final {
+template <class InNode, bool IsReverse = false>
+class IntrusiveListIterator final {
 
   static_assert(std::is_base_of<IntrusiveListNode, InNode>::value,
                 "Node type must be derived from intrusive node");
@@ -72,12 +73,20 @@ public:
   }
 
   IntrusiveListIterator &operator++() noexcept {
-    m_node_ptr = static_cast<pointer>(m_node_ptr->get_next());
+    if constexpr (IsReverse) {
+      m_node_ptr = static_cast<pointer>(m_node_ptr->get_prev());
+    } else {
+      m_node_ptr = static_cast<pointer>(m_node_ptr->get_next());
+    }
     return *this;
   }
 
   IntrusiveListIterator &operator--() noexcept {
-    m_node_ptr = m_node_ptr->get_prev();
+    if constexpr (IsReverse) {
+      m_node_ptr = static_cast<pointer>(m_node_ptr->get_next());
+    } else {
+      m_node_ptr = static_cast<pointer>(m_node_ptr->get_prev());
+    }
     return *this;
   }
 
@@ -102,15 +111,15 @@ public:
   }
 };
 
-template <typename InNode>
-bool operator==(IntrusiveListIterator<InNode> lhs,
-                IntrusiveListIterator<InNode> rhs) {
+template <typename InNode, bool IsReverse = false>
+bool operator==(IntrusiveListIterator<InNode, IsReverse> lhs,
+                IntrusiveListIterator<InNode, IsReverse> rhs) {
   return lhs.is_equal(rhs);
 }
 
-template <typename InNode>
-bool operator!=(IntrusiveListIterator<InNode> lhs,
-                IntrusiveListIterator<InNode> rhs) {
+template <typename InNode, bool IsReverse = false>
+bool operator!=(IntrusiveListIterator<InNode, IsReverse> lhs,
+                IntrusiveListIterator<InNode, IsReverse> rhs) {
   return !(lhs == rhs);
 }
 
@@ -165,6 +174,7 @@ private:
 
 public:
   using iterator = detailList::IntrusiveListIterator<InNode>;
+  using reverse_iterator = detailList::IntrusiveListIterator<InNode, true>;
   using const_iterator =
       detailList::IntrusiveListIterator<std::add_const_t<InNode>>;
   using value_type = typename iterator::value_type;
@@ -176,6 +186,11 @@ public:
   iterator begin() noexcept { return iterator{get_head()}; }
   iterator end() noexcept {
     return iterator{static_cast<pointer>(InNode::NIL_NODE())};
+  }
+
+  reverse_iterator rbegin() noexcept { return reverse_iterator{get_tail()}; }
+  reverse_iterator rend() noexcept {
+    return reverse_iterator{static_cast<pointer>(InNode::NIL_NODE())};
   }
 
   const_iterator cbegin() const noexcept { return const_iterator{get_head()}; }

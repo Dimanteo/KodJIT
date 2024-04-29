@@ -20,6 +20,8 @@ class Compiler final {
 
   LinearOrder m_linear_order;
 
+  Liveness m_liveness;
+
 public:
   Compiler() = default;
   Compiler(const Compiler &Compiler) = delete;
@@ -54,14 +56,19 @@ public:
 };
 
 template <> inline RPOAnalysis &Compiler::get<RPOAnalysis>() { return m_rpo; }
+
 template <> inline DomsTreeAnalysis &Compiler::get<DomsTreeAnalysis>() {
   return m_dom_tree;
 }
+
 template <> inline LoopTreeAnalysis &Compiler::get<LoopTreeAnalysis>() {
   return m_loop_tree;
 }
+
 template <> inline LinearOrder &Compiler::get<LinearOrder>() {
   return m_linear_order;
 }
+
+template <> inline Liveness &Compiler::get<Liveness>() { return m_liveness; }
 
 } // namespace koda

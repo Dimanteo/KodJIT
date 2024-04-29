@@ -81,6 +81,28 @@ public:
   void run(Compiler &comp);
   auto begin() const { return m_linear_order.begin(); }
   auto end() const { return m_linear_order.end(); }
+  auto rbegin() const { return m_linear_order.rbegin(); }
+  auto rend() const { return m_linear_order.rend(); }
+};
+
+class Liveness : public AnalysisBase {
+  using LiveRange = std::pair<size_t, size_t>;
+  using RangeMap = std::vector<LiveRange>;
+
+  RangeMap m_live_ranges;
+
+  void extend_liverange(instid_t inst, const LiveRange &range) {
+    auto &liverange = m_live_ranges[inst];
+    liverange.first = std::min(liverange.first, range.first);
+    liverange.second = std::max(liverange.second, range.second);
+  };
+
+public:
+  virtual ~Liveness() = default;
+
+  void run(Compiler &compiler);
+
+  LiveRange get_live_range(instid_t iid) const { return m_live_ranges[iid]; }
 };
 
 } // namespace koda

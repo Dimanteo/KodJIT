@@ -97,8 +97,7 @@ void LoopTreeAnalysis::run(ProgramGraph &graph,
     loop_blocks.insert(header);
     for (auto &&latch : loop.get_latches()) {
       visit_dfs_conditional</*Backward=*/true>(
-          graph, latch,
-          [this, header, &loop_blocks](BasicBlock *backedge_src) {
+          graph, latch, [this, header, &loop_blocks](BasicBlock *backedge_src) {
             if (loop_blocks.find(backedge_src) != loop_blocks.end()) {
               return false;
             }
@@ -112,13 +111,14 @@ void LoopTreeAnalysis::run(ProgramGraph &graph,
             return true;
           });
       // Put blocks inside loop in DFS order
-      visit_dfs_conditional(graph, header, [&loop_blocks, &loop](BasicBlock *bb) {
-        if (loop_blocks.find(bb) == loop_blocks.end()) {
-          return false;
-        }
-        loop.add_block(bb);
-        return true;
-      });
+      visit_dfs_conditional(graph, header,
+                            [&loop_blocks, &loop](BasicBlock *bb) {
+                              if (loop_blocks.find(bb) == loop_blocks.end()) {
+                                return false;
+                              }
+                              loop.add_block(bb);
+                              return true;
+                            });
     }
   }
 
@@ -184,5 +184,112 @@ void LinearOrder::linearize_loop(const BasicBlock &header,
 }
 
 void LinearOrder::run(Compiler &comp) { linearize_graph(comp); }
+
+void Liveness::run(Compiler &compiler) {
+  using LiveSet = std::unordered_set<instid_t>;
+  using BBLiveSetMap = std::vector<LiveSet>;
+
+  auto &&linear_order = compiler.get_or_create<LinearOrder>(compiler);
+  auto &&loop_analysis = compiler.get_or_create<LoopTreeAnalysis>(compiler);
+  const size_t bb_count = compiler.graph().size();
+  const size_t inst_count = compiler.graph().get_instr_count();
+  std::vector<size_t> live_numbers(inst_count);
+  RangeMap bb_live_nums(bb_count);
+  BBLiveSetMap live_set_map(bb_count);
+  m_live_ranges.resize(inst_count, {0, 0});
+
+  auto set_live_num = [&live_numbers](instid_t iid, size_t num) {
+    live_numbers[iid] = num;
+  };
+
+  auto get_live_num = [&live_numbers](instid_t iid) {
+    return live_numbers[iid];
+  };
+
+  auto get_live_set = [&live_set_map](BasicBlock *bb) -> LiveSet & {
+    return live_set_map[bb->get_id()];
+  };
+
+  auto get_bb_live_range = [&bb_live_nums](BasicBlock *bb) -> LiveRange & {
+    return bb_live_nums[bb->get_id()];
+  };
+
+  // Assign live numbers
+  size_t live_num = 0;
+  for (const auto &bb : linear_order) {
+    auto &&bb_range = get_bb_live_range(bb);
+    bb_range.first = live_num;
+    for (auto &&inst : *bb) {
+      if (inst.is_phi()) {
+        set_live_num(inst.get_id(), bb_range.first);
+      } else {
+        live_num += 2;
+        set_live_num(inst.get_id(), live_num);
+      }
+    }
+    live_num += 2;
+    bb_range.second = live_num;
+  }
+  // Calculate live ranges
+  for (auto &&bb_it = linear_order.rbegin(), end_bb = linear_order.rend();
+       bb_it != end_bb; ++bb_it) {
+    auto &&bb = *bb_it;
+    // Calculate initial live set for block
+    auto &&live_set = get_live_set(bb);
+    for (auto &&succ = bb->succ_begin(), end_succ = bb->succ_end();
+         succ != end_succ; ++succ) {
+      // Union of all successors live sets
+      auto &&succ_live_set = get_live_set(*succ);
+      std::copy(succ_live_set.begin(), succ_live_set.end(),
+                std::inserter(live_set, live_set.begin()));
+      // Successor's phi inputs
+      for (auto &&inst : **succ) {
+        if (!inst.is_phi()) {
+          continue;
+        }
+        PhiInstruction &phi = dynamic_cast<PhiInstruction &>(inst);
+        auto phi_input = phi.get_value_for(bb);
+        if (phi_input) {
+          live_set.insert(phi_input->get_id());
+        }
+      }
+    }
+    // Append block live range to all entries in live set
+    auto &&bb_range = get_bb_live_range(bb);
+    for (instid_t iid : live_set) {
+      extend_liverange(iid, bb_range);
+    }
+    // Shorten live ranges
+    for (auto &&inst_it = bb->rbegin(), end_it = bb->rend(); inst_it != end_it;
+         ++inst_it) {
+      auto &&inst = *inst_it;
+      size_t inst_live_num = get_live_num(inst.get_id());
+      if (inst.is_def()) {
+        m_live_ranges[inst.get_id()].first = inst_live_num;
+        live_set.erase(inst.get_id());
+      }
+      if (inst.is_phi()) {
+        continue;
+      }
+      for (auto &&input = inst.inputs_begin(), end_input = inst.inputs_end();
+           input != end_input; ++input) {
+        instid_t input_id = (*input)->get_id();
+        live_set.insert(input_id);
+        extend_liverange(input_id, {bb_range.first, inst_live_num});
+      }
+    }
+    // Extend liveness in loops
+    if (bb->is_loop_header()) {
+      auto &&loop = loop_analysis.get_loop(*bb);
+      size_t loop_end = bb_range.second;
+      for (auto &&loop_bb : loop) {
+        loop_end = std::max(loop_end, get_bb_live_range(loop_bb).second);
+      }
+      for (instid_t iid : live_set) {
+        extend_liverange(iid, {bb_range.first, loop_end});
+      }
+    }
+  }
+}
 
 } // namespace koda

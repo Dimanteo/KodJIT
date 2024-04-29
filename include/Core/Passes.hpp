@@ -3,15 +3,14 @@
 #include <DataStructures/Tree.hpp>
 #include <IR/BasicBlock.hpp>
 
-
 namespace koda {
 
-class ProgramGraph;
+class Compiler;
 
 // Base class for all passes
 struct PassI {
   virtual ~PassI() = default;
-  virtual void run(ProgramGraph &graph) = 0;
+  virtual void run(Compiler &compiler) = 0;
 };
 
 } // namespace koda

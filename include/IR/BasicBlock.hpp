@@ -102,6 +102,8 @@ public:
   iterator end() noexcept { return m_instructions.end(); }
   const_iterator begin() const noexcept { return m_instructions.cbegin(); }
   const_iterator end() const noexcept { return m_instructions.cend(); }
+  auto rbegin() noexcept { return m_instructions.rbegin(); }
+  auto rend() noexcept { return m_instructions.rend(); }
 
   SuccIterator succ_begin() { return m_successors.begin(); }
   SuccIterator succ_end() { return m_successors.end(); }

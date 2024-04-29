@@ -102,6 +102,8 @@ public:
 
   size_t size() const { return m_bb_arena.size(); }
 
+  size_t get_instr_count() const { return m_inst_arena.size(); }
+
   // Create program parameter of given type.
   // Return index of that parameter
   //
