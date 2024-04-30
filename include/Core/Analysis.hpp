@@ -5,6 +5,10 @@
 #include "DataStructures/Tree.hpp"
 #include "IR/BasicBlock.hpp"
 
+#include <set>
+#include <unordered_map>
+#include <optional>
+
 namespace koda {
 
 class Compiler;
@@ -103,6 +107,79 @@ public:
   void run(Compiler &compiler);
 
   LiveRange get_live_range(instid_t iid) const { return m_live_ranges[iid]; }
+};
+
+namespace _detailRegalloc {
+
+struct Interval {
+  instid_t inst;
+  size_t begin;
+  size_t end;
+};
+
+inline bool operator<(const Interval &lhs, const Interval &rhs) {
+  if (lhs.end == rhs.end) {
+    if (lhs.begin == rhs.begin) {
+      return lhs.inst < rhs.inst;
+    }
+    return lhs.begin < rhs.begin;
+  }
+  return lhs.end < rhs.end;
+}
+
+};
+
+class RegAlloc : public AnalysisBase {
+  using Interval = _detailRegalloc::Interval;
+  using locid_t = int;
+
+  constexpr static locid_t INVALID_REG = -1;
+
+  size_t m_regnum;
+
+  locid_t m_slot_num = 0;
+
+  std::vector<locid_t> m_free_pool;
+
+  std::set<Interval> m_active;
+
+  std::vector<locid_t> m_regmap;
+
+  std::unordered_map<instid_t, locid_t> m_slotmap;
+
+  void expire_old_intervals(const Interval &inter);
+
+  void spill_at_interval(const Interval &inter);
+
+  locid_t alloc_stack_slot() { return m_slot_num++; }
+
+  bool is_spilled(instid_t inst) const {
+    return m_slotmap.find(inst) != m_slotmap.end();
+  }
+
+  void reset(Compiler &compiler);
+
+public:
+  struct Location {
+    locid_t location;
+    bool is_stack;
+  };
+
+  virtual ~RegAlloc() = default;
+
+  void run(Compiler &compiler);
+
+  std::optional<Location> get_location(instid_t inst) {
+    auto slot = m_slotmap.find(inst);
+    if (slot == m_slotmap.end()) {
+      locid_t loc = m_regmap[inst];
+      if (loc == INVALID_REG) {
+        return std::nullopt;
+      }
+      return Location{loc, false};
+    }
+    return Location{slot->second, true};
+  }
 };
 
 } // namespace koda

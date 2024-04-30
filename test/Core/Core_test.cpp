@@ -146,6 +146,7 @@ TEST(CoreTest, liveness_test) {
   auto &&liveness = comp.get_or_create<Liveness>(comp);
   auto &&lin_order = comp.get_or_create<LinearOrder>(comp);
   size_t lin_num = 0;
+  // clang-format off
   std::vector<std::pair<size_t, size_t>> ref_ranges = {
     {2, 20},
     {4, 8},
@@ -160,10 +161,89 @@ TEST(CoreTest, liveness_test) {
     {0, 0},
     {0, 0}
   };
+  // clang-format on
   for (auto &&bb : lin_order) {
     for (auto &&inst : *bb) {
       auto &&range = liveness.get_live_range(inst.get_id());
       ASSERT_EQ(ref_ranges[lin_num++], range);
+    }
+  }
+}
+
+TEST(CoreTest, regalloc_test) {
+  Compiler comp(3);
+  auto &&graph = comp.graph();
+  IRBuilder builder(graph);
+  MKBB(0);
+  MKBB(1);
+  MKBB(2);
+  MKBB(3);
+  MKBB(4);
+  builder.set_entry_point(bb0);
+  builder.set_insert_point(bb0);
+  auto inst_c1 = builder.create_int_constant(1);
+  auto inst_c10 = builder.create_int_constant(10);
+  auto inst_c20 = builder.create_int_constant(20);
+  bb0->set_uncond_successor(bb1);
+
+  builder.set_insert_point(bb1);
+  auto phi_c1_loop = builder.create_phi(INTEGER);
+  auto phi_c10_loop = builder.create_phi(INTEGER);
+  auto cmp = builder.create_isub(phi_c10_loop, inst_c1);
+  builder.create_conditional_branch(CMP_NE, bb3, bb2, cmp, cmp);
+
+  builder.set_insert_point(bb2);
+  auto mul = builder.create_imul(phi_c1_loop, phi_c10_loop);
+  auto sub = builder.create_isub(phi_c10_loop, inst_c1);
+  bb2->set_uncond_successor(bb1);
+
+  builder.set_insert_point(bb3);
+  auto ret = builder.create_iadd(inst_c20, phi_c1_loop);
+  builder.create_iadd(ret, ret);
+  builder.create_branch(bb4);
+
+  phi_c1_loop->add_option(bb0, inst_c1);
+  phi_c1_loop->add_option(bb2, mul);
+  phi_c10_loop->add_option(bb0, inst_c10);
+  phi_c10_loop->add_option(bb2, sub);
+
+  dump_graph(graph, "RegallocTest");
+
+  auto &&regalloc = comp.get_or_create<RegAlloc>(comp);
+
+  std::vector<std::optional<RegAlloc::Location>> ref_locs(
+      graph.get_instr_count());
+#define REG(inst, reg) ref_locs[inst] = RegAlloc::Location{reg, false}
+#define STK(inst, slot)                                                        \
+  ref_locs[inst] = RegAlloc::Location { slot, true }
+  REG(0, 0);
+  REG(1, 1);
+  STK(2, 1);
+  STK(3, 0);
+  REG(4, 1);
+  REG(5, 2);
+  ref_locs[6] = std::nullopt;
+  REG(7, 2);
+  REG(8, 1);
+  REG(9, 1);
+  ref_locs[10] = std::nullopt;
+  ref_locs[11] = std::nullopt;
+#undef REG
+#undef STK
+  for (auto &&bb : graph) {
+    for (auto &&inst : bb) {
+      auto location = regalloc.get_location(inst.get_id());
+      ASSERT_EQ(location.has_value(), ref_locs[inst.get_id()].has_value());
+      if (location.has_value()) {
+        std::cout << "i" << inst.get_id() << " ";
+        if (location->is_stack)
+          std::cout << "s";
+        else
+         std::cout << "r";
+        std::cout << location->location << "\n";
+        ASSERT_EQ(location->is_stack, ref_locs[inst.get_id()]->is_stack);
+        ASSERT_EQ(location->location, ref_locs[inst.get_id()]->location);
+      }
     }
   }
 }

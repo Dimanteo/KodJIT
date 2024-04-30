@@ -22,14 +22,21 @@ class Compiler final {
 
   Liveness m_liveness;
 
+  RegAlloc m_regalloc;
+
+  size_t m_num_pregs = 30;
+
 public:
   Compiler() = default;
+  Compiler(size_t numregs) : m_num_pregs(numregs) {}
   Compiler(const Compiler &Compiler) = delete;
   Compiler(Compiler &&) = delete;
   Compiler &operator=(const Compiler &Compiler) = delete;
   Compiler &operator=(Compiler &&Compiler) = delete;
 
   ProgramGraph &graph() { return m_graph; }
+
+  size_t get_num_pregs() const { return m_num_pregs; }
 
   template <typename Analysis> Analysis &get();
 
@@ -70,5 +77,7 @@ template <> inline LinearOrder &Compiler::get<LinearOrder>() {
 }
 
 template <> inline Liveness &Compiler::get<Liveness>() { return m_liveness; }
+
+template <> inline RegAlloc &Compiler::get<RegAlloc>() { return m_regalloc; }
 
 } // namespace koda

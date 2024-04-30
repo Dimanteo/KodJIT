@@ -292,4 +292,83 @@ void Liveness::run(Compiler &compiler) {
   }
 }
 
+void RegAlloc::reset(Compiler &compiler) {
+  m_slot_num = 0;
+  m_slotmap.clear();
+  m_active.clear();
+  m_regnum = compiler.get_num_pregs();
+
+  m_regmap.clear();
+  m_regmap.resize(compiler.graph().get_instr_count(), INVALID_REG);
+
+  m_free_pool.clear();
+  for (locid_t reg = m_regnum - 1; reg >= 0; reg--) {
+    m_free_pool.push_back(reg);
+  }
+}
+
+void RegAlloc::run(Compiler &compiler) {
+  reset(compiler);
+  auto &&liveness = compiler.get_or_create<Liveness>(compiler);
+  auto cmp_ascending_start = [](const Interval &lhs, const Interval &rhs) {
+    if (lhs.begin == rhs.begin) {
+      if (lhs.end == rhs.begin) {
+        return lhs.inst < rhs.inst;
+      }
+      return lhs.end < rhs.end;
+    }
+    return lhs.begin < rhs.begin;
+  };
+  std::set<Interval, decltype(cmp_ascending_start)> intervals(
+      cmp_ascending_start);
+
+  for (auto &&bb : compiler.graph()) {
+    for (auto &&inst : bb) {
+      instid_t id = inst.get_id();
+      auto &&range = liveness.get_live_range(id);
+      if (range.first != range.second)
+        intervals.insert({id, range.first, range.second});
+    }
+  }
+
+  for (auto &&inter : intervals) {
+    expire_old_intervals(inter);
+    if (m_active.size() == m_regnum) {
+      spill_at_interval(inter);
+    } else {
+      assert(m_free_pool.size() && "No regs to allocate");
+      m_regmap[inter.inst] = m_free_pool.back();
+      m_free_pool.pop_back();
+      m_active.insert(inter);
+    }
+  }
+}
+
+void RegAlloc::expire_old_intervals(const Interval &inter) {
+  auto expired_end = m_active.begin();
+  for (; expired_end != m_active.end(); ++expired_end) {
+    if (expired_end->end > inter.begin) {
+      break;
+    }
+    if (!is_spilled(expired_end->inst)) {
+      locid_t reg = m_regmap[expired_end->inst];
+      m_free_pool.push_back(reg);
+      assert(m_free_pool.size() <= m_regnum && "Duplicated reg in free pool");
+    }
+  }
+  m_active.erase(m_active.begin(), expired_end);
+}
+
+void RegAlloc::spill_at_interval(const Interval &inter) {
+  auto &&spill = *m_active.rbegin();
+  if (spill.end > inter.end) {
+    m_regmap[inter.inst] = m_regmap[spill.inst];
+    m_slotmap[spill.inst] = alloc_stack_slot();
+    m_active.erase(spill);
+    m_active.insert(inter);
+  } else {
+    m_slotmap[inter.inst] = alloc_stack_slot();
+  }
+}
+
 } // namespace koda
