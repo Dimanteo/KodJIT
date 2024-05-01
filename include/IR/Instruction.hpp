@@ -47,6 +47,14 @@ public:
   Instruction(const Instruction &) = delete;
   Instruction &operator=(const Instruction &) = delete;
 
+  Instruction *get_next() const {
+    return reinterpret_cast<Instruction *>(IntrusiveListNode::get_next());
+  }
+
+  Instruction *get_prev() const {
+    return reinterpret_cast<Instruction *>(IntrusiveListNode::get_prev());
+  }
+
   instid_t get_id() const { return m_id; }
 
   InstOpcode get_opcode() const { return m_opcode; };
@@ -56,6 +64,10 @@ public:
   void set_bb(BasicBlock *bb) { m_bblock = bb; }
 
   void add_user(Instruction *user) { m_users.push_back(user); }
+
+  void rm_user(Instruction *user);
+
+  void rm_user(size_t idx);
 
   size_t get_num_users() const { return m_users.size(); }
 
@@ -71,6 +83,13 @@ public:
 
   size_t get_num_inputs() const { return m_inputs.size(); }
 
+  Instruction *get_input(size_t idx) const {
+    assert(idx < get_num_inputs() && "Invalid input index");
+    return m_inputs[idx];
+  }
+
+  void switch_input(Instruction *oldin, Instruction *newin);
+
   auto inputs_begin() { return m_inputs.begin(); }
 
   auto inputs_end() { return m_inputs.end(); }
@@ -83,7 +102,10 @@ public:
 
   bool is_phi() const { return m_opcode == INST_PHI; }
 
-  bool is_def() { return get_num_users() != 0; }
+  bool has_side_effects() const {
+    return m_opcode == INST_BRANCH || m_opcode == INST_COND_BR ||
+           m_opcode == INST_RET;
+  }
 
   void dump(std::ostream &os) const {
     os << "i" << get_id() << ": " << inst_opc_to_str(get_opcode()) << " ";
@@ -103,9 +125,9 @@ private:
 };
 
 class BinaryOpInstructionBase : public Instruction {
+public:
   enum SIDE_IDX : unsigned { LHS = 0, RHS = 1 };
 
-public:
   BinaryOpInstructionBase(instid_t id, InstOpcode opc, Instruction *lhs,
                           Instruction *rhs)
       : Instruction(id, opc) {
@@ -258,6 +280,22 @@ public:
   }
 
   OperandType get_type() const override { return INTEGER; }
+
+  Instruction *get_input() const { return m_inputs[0]; }
+};
+
+class ReturnInstruction : public Instruction {
+public:
+  virtual ~ReturnInstruction() = default;
+
+  ReturnInstruction(instid_t id, Instruction *input)
+      : Instruction(id, INST_RET) {
+    m_inputs.resize(1, input);
+  }
+
+  OperandType get_type() const override { return get_input()->get_type(); }
+
+  Instruction *get_input() const { return m_inputs[0]; }
 };
 
 }; // namespace koda

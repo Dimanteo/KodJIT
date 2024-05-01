@@ -25,6 +25,33 @@ IROperandError::make_error_str(std::initializer_list<IOperand *> received,
   return msg;
 }
 
+void IRBuilder::move_users(Instruction *from, Instruction *to) {
+  std::for_each(from->users_begin(), from->users_end(),
+                [from, to](Instruction *use) {
+                  to->add_user(use);
+                  use->switch_input(from, to);
+                });
+}
+
+Instruction *IRBuilder::rm_instruction(Instruction *inst) {
+  auto &&bb = inst->get_bb();
+  std::for_each(inst->inputs_begin(), inst->inputs_end(),
+                [inst](Instruction *input) { input->rm_user(inst); });
+  std::for_each(
+      inst->users_begin(), inst->users_end(),
+      [inst](Instruction *user) { user->switch_input(inst, nullptr); });
+  return bb->remove_instruction(inst);
+}
+
+Instruction *IRBuilder::replace(Instruction *old_inst, Instruction *new_inst) {
+  auto &&bb = old_inst->get_bb();
+  bb->insert_inst_after(new_inst, old_inst);
+  move_users(old_inst, new_inst);
+  std::for_each(old_inst->inputs_begin(), old_inst->inputs_end(),
+                [old_inst](Instruction *input) { input->rm_user(old_inst); });
+  return bb->remove_instruction(old_inst);
+}
+
 LoadParam *IRBuilder::create_param_load(size_t param_idx) {
   if (param_idx >= m_graph->get_num_params()) {
     throw IRInvalidArgument("Invalid parameter index");
@@ -98,6 +125,13 @@ BitNot *IRBuilder::create_not(Instruction *val) {
   add_instruction(bitnot);
   add_user_to(bitnot, {val});
   return bitnot;
+}
+
+ReturnInstruction *IRBuilder::create_ret(Instruction *val) {
+  auto ret = m_graph->create_instruction<ReturnInstruction>(val);
+  add_instruction(ret);
+  add_user_to(ret, {val});
+  return ret;
 }
 
 }; // namespace koda

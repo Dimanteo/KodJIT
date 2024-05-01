@@ -26,7 +26,7 @@ public:
   virtual ~AnalysisBase() = default;
 
   bool is_ready() const { return m_is_ready; }
-  void set_ready(bool Val) { m_is_ready = Val; }
+  void set_ready(bool val) { m_is_ready = val; }
 };
 
 class RPOAnalysis final : public AnalysisBase {
@@ -35,6 +35,7 @@ class RPOAnalysis final : public AnalysisBase {
 public:
   virtual ~RPOAnalysis() = default;
   void run(ProgramGraph &graph);
+  void run(Compiler &comp);
   std::vector<bbid_t> &blocks() { return m_rpo; }
   auto begin() { return m_rpo.begin(); }
   auto end() { return m_rpo.end(); }
@@ -52,6 +53,7 @@ private:
 public:
   virtual ~DomsTreeAnalysis() = default;
   void run(ProgramGraph &graph);
+  void run(Compiler &comp);
   DomsTree &get() { return m_dom_tree; }
 };
 

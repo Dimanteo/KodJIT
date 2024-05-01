@@ -68,6 +68,12 @@ public:
 
   BasicBlock *get_insert_point() const { return m_insert_bb; }
 
+  static void move_users(Instruction *from, Instruction *to);
+
+  static Instruction *rm_instruction(Instruction *inst);
+
+  static Instruction *replace(Instruction *old_inst, Instruction *new_inst);
+
   LoadParam *create_param_load(size_t param_idx);
 
   LoadConstant<int64_t> *create_int_constant(int64_t value);
@@ -132,6 +138,8 @@ public:
   }
 
   BitNot *create_not(Instruction *val);
+
+  ReturnInstruction *create_ret(Instruction *val);
 };
 
 } // namespace koda

@@ -198,6 +198,8 @@ public:
     return const_iterator{static_cast<pointer>(InNode::NIL_NODE())};
   }
 
+  size_t size() const { return std::distance(cbegin(), cend()); }
+
   void insert_tail(InNode *node) {
     assert(!InNode::is_nil(node) && "Invalid node passed as argument");
     insert_tail(*node);
@@ -256,7 +258,7 @@ public:
       return;
     }
 
-    InNode *next = insertPoint.get_next();
+    InNode *next = static_cast<InNode *>(insertPoint.get_next());
     next->set_prev(node);
     insertPoint.set_next(node);
     node.set_next(next);
@@ -275,7 +277,7 @@ public:
       return;
     }
 
-    InNode *prev = insertPoint.get_prev();
+    InNode *prev = static_cast<InNode *>(insertPoint.get_prev());
     insertPoint.set_prev(node);
     prev->set_next(node);
     node.set_next(insertPoint);

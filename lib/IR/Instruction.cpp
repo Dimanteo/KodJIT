@@ -4,6 +4,26 @@
 
 namespace koda {
 
+void Instruction::rm_user(Instruction *user) {
+  auto pos = std::find(m_users.begin(), m_users.end(), user);
+  m_users.erase(pos);
+}
+
+void Instruction::rm_user(size_t idx) {
+  auto pos = m_users.begin();
+  std::advance(pos, idx);
+  m_users.erase(pos);
+}
+
+void Instruction::switch_input(Instruction *oldin, Instruction *newin) {
+  auto pos = std::find(m_inputs.begin(), m_inputs.end(), oldin);
+  if (pos == m_inputs.end()) {
+    return;
+  }
+  size_t idx = std::distance(m_inputs.begin(), pos);
+  m_inputs[idx] = newin;
+}
+
 void PhiInstruction::add_option(BasicBlock *incoming_bb, Instruction *value) {
   assert(value->get_type() == m_type);
   if (value->get_type() != m_type) {

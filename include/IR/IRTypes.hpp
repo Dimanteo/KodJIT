@@ -15,7 +15,7 @@ enum InstOpcode : unsigned {
 };
 
 inline constexpr bool is_terminator_opcode(InstOpcode opc) {
-  return opc == INST_BRANCH || opc == INST_COND_BR;
+  return opc == INST_BRANCH || opc == INST_COND_BR || opc == INST_RET;
 }
 
 inline constexpr const char *inst_opc_to_str(InstOpcode opc) {

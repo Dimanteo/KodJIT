@@ -67,6 +67,16 @@ public:
     instruction->set_bb(this);
   }
 
+  void insert_inst_after(Instruction *instruction, Instruction *point) {
+    m_instructions.insert_after(point, instruction);
+    instruction->set_bb(this);
+  }
+
+  void insert_inst_before(Instruction *instruction, Instruction *point) {
+    m_instructions.insert_before(point, instruction);
+    instruction->set_bb(this);
+  }
+
   Instruction *remove_instruction(Instruction *instruction) {
     instruction->set_bb(nullptr);
     return m_instructions.remove(instruction);
@@ -96,6 +106,18 @@ public:
   void set_loop_id(loop_id_t loop_id) { m_loop_id = loop_id; }
 
   loop_id_t get_loop_id() const { return m_loop_id; }
+
+  bool empty() const { return m_instructions.empty(); }
+
+  size_t size() const { return m_instructions.size(); }
+
+  Instruction &front() { return *m_instructions.get_head();}
+
+  Instruction &back() { return *m_instructions.get_tail(); }
+
+  const Instruction &front() const { return *m_instructions.get_head();}
+
+  const Instruction &back() const { return *m_instructions.get_tail(); }
 
   // Basic block iterators
   iterator begin() noexcept { return m_instructions.begin(); }

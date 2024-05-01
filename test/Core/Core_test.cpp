@@ -239,13 +239,79 @@ TEST(CoreTest, regalloc_test) {
         if (location->is_stack)
           std::cout << "s";
         else
-         std::cout << "r";
+          std::cout << "r";
         std::cout << location->location << "\n";
         ASSERT_EQ(location->is_stack, ref_locs[inst.get_id()]->is_stack);
         ASSERT_EQ(location->location, ref_locs[inst.get_id()]->location);
       }
     }
   }
+}
+
+TEST(CoreTest, and_fold) {
+  Compiler comp;
+  comp.register_pass<ConstantFolding>();
+  auto &&graph = comp.graph();
+  IRBuilder builder(graph);
+  MKBB(0);
+  builder.set_entry_point(bb0);
+  builder.set_insert_point(bb0);
+  auto lhs = builder.create_int_constant(7);
+  auto rhs = builder.create_int_constant(2);
+  auto res = builder.create_and(lhs, rhs);
+  auto term = builder.create_ret(res);
+  dump_graph(graph, "FoldAndTest0");
+  comp.run_all_passes();
+  dump_graph(graph, "FoldAndTest1");
+  ASSERT_EQ(bb0->size(), 2);
+  ASSERT_EQ(bb0->front().get_opcode(), INST_CONST);
+  auto val = dynamic_cast<LoadConstant<u_int64_t> &>(bb0->front()).get_value();
+  ASSERT_EQ(val, 7 & 2);
+  ASSERT_EQ(&bb0->back(), term);
+}
+
+TEST(CoreTest, sub_fold) {
+  Compiler comp;
+  comp.register_pass<ConstantFolding>();
+  auto &&graph = comp.graph();
+  IRBuilder builder(graph);
+  MKBB(0);
+  builder.set_entry_point(bb0);
+  builder.set_insert_point(bb0);
+  auto lhs = builder.create_int_constant(7);
+  auto rhs = builder.create_int_constant(2);
+  auto res = builder.create_isub(lhs, rhs);
+  auto term = builder.create_ret(res);
+  dump_graph(graph, "FoldSubTest0");
+  comp.run_all_passes();
+  dump_graph(graph, "FoldSubTest1");
+  ASSERT_EQ(bb0->size(), 2);
+  ASSERT_EQ(bb0->front().get_opcode(), INST_CONST);
+  auto val = dynamic_cast<LoadConstant<u_int64_t> &>(bb0->front()).get_value();
+  ASSERT_EQ(val, 7 - 2);
+  ASSERT_EQ(&bb0->back(), term);
+}
+
+TEST(CoreTest, shr_fold) {
+  Compiler comp;
+  comp.register_pass<ConstantFolding>();
+  auto &&graph = comp.graph();
+  IRBuilder builder(graph);
+  MKBB(0);
+  builder.set_entry_point(bb0);
+  builder.set_insert_point(bb0);
+  auto lhs = builder.create_int_constant(32);
+  auto rhs = builder.create_int_constant(3);
+  auto res = builder.create_shr(lhs, rhs);
+  auto term = builder.create_ret(res);
+  dump_graph(graph, "FoldShrTest0");
+  comp.run_all_passes();
+  dump_graph(graph, "FoldShrTest1");
+  ASSERT_EQ(bb0->size(), 2);
+  ASSERT_EQ(bb0->front().get_opcode(), INST_CONST);
+  auto val = dynamic_cast<LoadConstant<u_int64_t> &>(bb0->front()).get_value();
+  ASSERT_EQ(val, 32 >> 3);
+  ASSERT_EQ(&bb0->back(), term);
 }
 
 #undef MKBB

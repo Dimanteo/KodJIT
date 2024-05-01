@@ -10,12 +10,20 @@ LoopInfo::loop_id_t LoopInfo::get_id() const {
   return m_header ? m_header->get_loop_id() : INVALID_LOOP_ID;
 }
 
+void RPOAnalysis::run(Compiler &comp) {
+  run(comp.graph());
+}
+
 void RPOAnalysis::run(ProgramGraph &graph) {
   assert(graph.get_entry() != nullptr && "Entry block must be specified");
   m_rpo.clear();
   auto inserter = std::back_inserter(m_rpo);
   visit_rpo(graph, graph.get_entry(),
             [&inserter](BasicBlock *bb) { *inserter = bb->get_id(); });
+}
+
+void DomsTreeAnalysis::run(Compiler &comp) {
+  run(comp.graph());
 }
 
 void DomsTreeAnalysis::run(ProgramGraph &graph) {
@@ -264,7 +272,7 @@ void Liveness::run(Compiler &compiler) {
          ++inst_it) {
       auto &&inst = *inst_it;
       size_t inst_live_num = get_live_num(inst.get_id());
-      if (inst.is_def()) {
+      if (inst.get_num_users() != 0) {
         m_live_ranges[inst.get_id()].first = inst_live_num;
         live_set.erase(inst.get_id());
       }

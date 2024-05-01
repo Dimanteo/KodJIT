@@ -56,10 +56,14 @@ public:
   void register_pass(Args &&...args) {
     static_assert(std::is_base_of<PassI, Pass>::value,
                   "Pass must implement interface");
-    m_passes.emplace_back(std::forward<Args>(args)...);
+    m_passes.emplace_back(std::make_unique<Pass>(std::forward<Args>(args)...));
   }
 
-  void run_all_passes(ProgramGraph &graph);
+  void run_all_passes() {
+    for (const auto &pass : m_passes) {
+      pass->run(*this);
+    }
+  }
 };
 
 template <> inline RPOAnalysis &Compiler::get<RPOAnalysis>() { return m_rpo; }

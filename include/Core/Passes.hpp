@@ -2,6 +2,7 @@
 
 #include <DataStructures/Tree.hpp>
 #include <IR/BasicBlock.hpp>
+#include <IR/Instruction.hpp>
 
 namespace koda {
 
@@ -14,7 +15,27 @@ struct PassI {
 };
 
 class ConstantFolding : public PassI {
+public:
+  using ConstInst = LoadConstant<int64_t>;
 
+private:
+
+  static bool is_computable(const Instruction &inst);
+
+  static bool has_const_input(const Instruction &inst);
+
+  int64_t fold(const Instruction &act);
+
+  using Evaluator = std::function<int64_t (const Instruction &)>;
+
+  std::unordered_map<InstOpcode, Evaluator> m_evaluators;
+
+public:
+  virtual ~ConstantFolding() = default;
+
+  ConstantFolding();
+
+  void run(Compiler &compiler) override;
 };
 
 } // namespace koda
