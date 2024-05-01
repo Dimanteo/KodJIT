@@ -265,7 +265,7 @@ TEST(CoreTest, and_fold) {
   dump_graph(graph, "FoldAndTest1");
   ASSERT_EQ(bb0->size(), 2);
   ASSERT_EQ(bb0->front().get_opcode(), INST_CONST);
-  auto val = dynamic_cast<LoadConstant<u_int64_t> &>(bb0->front()).get_value();
+  auto val = dynamic_cast<LoadConstant<int64_t> &>(bb0->front()).get_value();
   ASSERT_EQ(val, 7 & 2);
   ASSERT_EQ(&bb0->back(), term);
 }
@@ -287,7 +287,7 @@ TEST(CoreTest, sub_fold) {
   dump_graph(graph, "FoldSubTest1");
   ASSERT_EQ(bb0->size(), 2);
   ASSERT_EQ(bb0->front().get_opcode(), INST_CONST);
-  auto val = dynamic_cast<LoadConstant<u_int64_t> &>(bb0->front()).get_value();
+  auto val = dynamic_cast<LoadConstant<int64_t> &>(bb0->front()).get_value();
   ASSERT_EQ(val, 7 - 2);
   ASSERT_EQ(&bb0->back(), term);
 }
@@ -309,9 +309,57 @@ TEST(CoreTest, shr_fold) {
   dump_graph(graph, "FoldShrTest1");
   ASSERT_EQ(bb0->size(), 2);
   ASSERT_EQ(bb0->front().get_opcode(), INST_CONST);
-  auto val = dynamic_cast<LoadConstant<u_int64_t> &>(bb0->front()).get_value();
+  auto val = dynamic_cast<LoadConstant<int64_t> &>(bb0->front()).get_value();
   ASSERT_EQ(val, 32 >> 3);
   ASSERT_EQ(&bb0->back(), term);
+}
+
+TEST(CoreTest, cross_bb_fold) {
+  Compiler comp;
+  comp.register_pass<ConstantFolding>();
+  auto &&graph = comp.graph();
+  IRBuilder builder(graph);
+  MKBB(0);
+  MKBB(1);
+  MKBB(2);
+  builder.set_entry_point(bb0);
+  // bb0:
+  // lhs = 10
+  // rhs = 13
+  // add_res = lhs + rhs
+  // cmp_const = 25
+  // if (add_res == 25) { goto bb2 } else { goto bb1 }
+  builder.set_insert_point(bb0);
+  auto lhs = builder.create_int_constant(10);
+  auto rhs = builder.create_int_constant(13);
+  auto add_res = builder.create_iadd(lhs, rhs);
+  auto cmp_const = builder.create_int_constant(25);
+  auto branch =
+      builder.create_conditional_branch(CMP_EQ, bb1, bb2, add_res, cmp_const);
+  // bb1:
+  // ret lhs
+  builder.set_insert_point(bb1);
+  builder.create_ret(lhs);
+  // bb2:
+  // sub_res = add_res - cmp_const
+  // ret sub_res
+  builder.set_insert_point(bb2);
+  auto sub_res = builder.create_isub(add_res, cmp_const);
+  auto ret_inst = builder.create_ret(sub_res);
+
+  dump_graph(graph, "FoldCrossBBTest0");
+  comp.run_all_passes();
+  dump_graph(graph, "FoldCrossBBTest1");
+
+  ASSERT_EQ(bb0->size(), 4);
+  auto folded_lhs = branch->get_lhs();
+  ASSERT_EQ(folded_lhs->get_opcode(), INST_CONST);
+  ASSERT_EQ(dynamic_cast<LoadConstant<int64_t> *>(folded_lhs)->get_value(), 23);
+
+  ASSERT_EQ(bb2->size(), 2);
+  auto folded_ret = ret_inst->get_input();
+  ASSERT_EQ(folded_ret->get_opcode(), INST_CONST);
+  ASSERT_EQ(dynamic_cast<LoadConstant<int64_t> *>(folded_ret)->get_value(), -2);
 }
 
 #undef MKBB

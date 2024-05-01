@@ -101,7 +101,7 @@ void ConstantFolding::run(Compiler &compiler) {
       }
       auto result = fold(*inst);
       auto folded_inst =
-          compiler.graph().create_instruction<LoadConstant<uint64_t>>(INTEGER,
+          compiler.graph().create_instruction<LoadConstant<int64_t>>(INTEGER,
                                                                       result);
       inst = builder.replace(inst, folded_inst);
     }
