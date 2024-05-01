@@ -8,8 +8,9 @@
 
 namespace koda {
 
-static std::string makeErrorStr(std::initializer_list<IOperand *> received,
-                                std::initializer_list<OperandType> expected) {
+std::string
+IROperandError::make_error_str(std::initializer_list<IOperand *> received,
+                               std::initializer_list<OperandType> expected) {
   std::string msg = "Error - type mismatch. Operand types are :\n";
   for (auto &&op : received) {
     msg.append(operand_type_to_str(op->get_type()));
@@ -24,37 +25,23 @@ static std::string makeErrorStr(std::initializer_list<IOperand *> received,
   return msg;
 }
 
-static void add_user_to(Instruction *user, std::vector<Instruction *> sources) {
-  std::for_each(sources.begin(), sources.end(), [user](Instruction *src) { src->add_user(user); });
-}
-
 LoadParam *IRBuilder::create_param_load(size_t param_idx) {
   if (param_idx >= m_graph->get_num_params()) {
     throw IRInvalidArgument("Invalid parameter index");
   }
 
   auto param = m_graph->get_param(param_idx);
-  auto load = m_graph->create_instruction<LoadParam>(param.get_type(), param.get_index());
+  auto load = m_graph->create_instruction<LoadParam>(param.get_type(),
+                                                     param.get_index());
   add_instruction(load);
 
   return load;
 }
 
 LoadConstant<int64_t> *IRBuilder::create_int_constant(int64_t value) {
-  auto inst = m_graph->create_instruction<LoadConstant<int64_t>>(OperandType::INTEGER, value);
+  auto inst = m_graph->create_instruction<LoadConstant<int64_t>>(
+      OperandType::INTEGER, value);
   add_instruction(inst);
-  return inst;
-}
-
-ArithmeticInstruction *IRBuilder::create_arithmetic_instruction(InstOpcode opcode, OperandType type,
-                                                                Instruction *lhs, Instruction *rhs) {
-  if (lhs->get_type() != type || rhs->get_type() != type) {
-    throw IROperandError(makeErrorStr({lhs, rhs}, {type, type}));
-  }
-
-  auto inst = m_graph->create_instruction<ArithmeticInstruction>(opcode, type, lhs, rhs);
-  add_instruction(inst);
-  add_user_to(inst, {lhs, rhs});
   return inst;
 }
 
@@ -71,20 +58,25 @@ BranchInstruction *IRBuilder::create_branch(BasicBlock *target) {
   return br_inst;
 }
 
-ConditionalBranchInstruction *IRBuilder::create_conditional_branch(CmpFlag cmp_flag, BasicBlock *false_block,
-                                                                   BasicBlock *true_block, Instruction *lhs,
-                                                                   Instruction *rhs) {
-  if (lhs->get_type() != OperandType::INTEGER || rhs->get_type() != OperandType::INTEGER) {
-    throw IROperandError(makeErrorStr({lhs, rhs}, {OperandType::INTEGER, OperandType::INTEGER}));
+ConditionalBranchInstruction *
+IRBuilder::create_conditional_branch(CmpFlag cmp_flag, BasicBlock *false_block,
+                                     BasicBlock *true_block, Instruction *lhs,
+                                     Instruction *rhs) {
+  if (lhs->get_type() != OperandType::INTEGER ||
+      rhs->get_type() != OperandType::INTEGER) {
+    throw IROperandError(IROperandError::make_error_str(
+        {lhs, rhs}, {OperandType::INTEGER, OperandType::INTEGER}));
   }
 
-  auto inst = m_graph->create_instruction<ConditionalBranchInstruction>(cmp_flag, lhs, rhs);
+  auto inst = m_graph->create_instruction<ConditionalBranchInstruction>(
+      cmp_flag, lhs, rhs);
   add_instruction(inst);
   add_user_to(inst, {lhs, rhs});
 
   auto curr_bb = get_insert_point();
 
-  // Update successors only if this is first branch in bb. Otherwise current instruction is unreachable.
+  // Update successors only if this is first branch in bb. Otherwise current
+  // instruction is unreachable.
   //
   if (!curr_bb->has_successor()) {
     curr_bb->set_cond_successors(false_block, true_block);
@@ -99,6 +91,13 @@ PhiInstruction *IRBuilder::create_phi(OperandType type) {
   auto phi = m_graph->create_instruction<PhiInstruction>(type);
   add_instruction(phi);
   return phi;
+}
+
+BitNot *IRBuilder::create_not(Instruction *val) {
+  auto bitnot = m_graph->create_instruction<BitNot>(val);
+  add_instruction(bitnot);
+  add_user_to(bitnot, {val});
+  return bitnot;
 }
 
 }; // namespace koda

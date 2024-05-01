@@ -30,7 +30,13 @@ protected:
 
   BasicBlock *m_bblock = nullptr;
 
-  virtual void dump_(std::ostream &os) const { (void)os; };
+  virtual void dump_(std::ostream &os) const {
+    os << operand_type_to_str(get_type());
+    for (auto &&input : m_inputs) {
+      os << " " << operand_type_to_str(input->get_type()) << " i"
+         << input->get_id();
+    }
+  };
 
 public:
   virtual ~Instruction() = default;
@@ -144,9 +150,6 @@ public:
       : BinaryOpInstructionBase(id, opc, lhs, rhs), m_type(type) {}
 
   OperandType get_type() const override { return m_type; }
-
-private:
-  void dump_(std::ostream &os) const override;
 };
 
 class PhiInstruction : public Instruction {
@@ -218,6 +221,43 @@ private:
   void dump_(std::ostream &os) const override {
     os << operand_type_to_str(get_type()) << " " << m_value;
   }
+};
+
+class BitOperation : public BinaryOpInstructionBase {
+public:
+  virtual ~BitOperation() = default;
+
+  BitOperation(instid_t id, InstOpcode opc, Instruction *lhs, Instruction *rhs)
+      : BinaryOpInstructionBase(id, opc, lhs, rhs) {
+    assert(lhs->get_type() == INTEGER);
+    assert(rhs->get_type() == INTEGER);
+  }
+
+  OperandType get_type() const override { return INTEGER; }
+};
+
+class BitShift : public BitOperation {
+public:
+  virtual ~BitShift() = default;
+
+  BitShift(instid_t id, InstOpcode opc, Instruction *lhs, Instruction *rhs)
+      : BitOperation(id, opc, lhs, rhs) {}
+
+  Instruction *get_value() { return get_lhs(); }
+
+  Instruction *get_shift() { return get_rhs(); }
+};
+
+class BitNot : public Instruction {
+public:
+  virtual ~BitNot() = default;
+
+  BitNot(instid_t id, Instruction *input) : Instruction(id, INST_NOT) {
+    assert(input->get_type() == INTEGER);
+    m_inputs.resize(1, input);
+  }
+
+  OperandType get_type() const override { return INTEGER; }
 };
 
 }; // namespace koda

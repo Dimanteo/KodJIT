@@ -13,4 +13,8 @@ struct PassI {
   virtual void run(Compiler &compiler) = 0;
 };
 
+class ConstantFolding : public PassI {
+
+};
+
 } // namespace koda

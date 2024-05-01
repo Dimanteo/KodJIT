@@ -15,7 +15,9 @@ class BasicBlock;
 struct IROperandError : std::runtime_error {
   IROperandError(const char *msg) : std::runtime_error(msg) {}
   IROperandError(const std::string msg) : std::runtime_error(msg) {}
-  static const char *make_error_str(std::initializer_list<IOperand> ops, OperandType expected);
+  static std::string
+  make_error_str(std::initializer_list<IOperand *> ops,
+                 std::initializer_list<OperandType> expected);
 };
 
 struct IRInvalidArgument : std::runtime_error {
@@ -29,10 +31,33 @@ class IRBuilder final {
   // Block where new instructions are inserted.
   BasicBlock *m_insert_bb;
 
-  ArithmeticInstruction *create_arithmetic_instruction(InstOpcode opcode, OperandType type, Instruction *lhs,
-                                                       Instruction *rhs);
+  template <typename InstT, OperandType OutType = OperandType::TYPE_INVALID>
+  InstT *create_binary_op(InstOpcode opcode, OperandType type, Instruction *lhs,
+                          Instruction *rhs) {
+    if (lhs->get_type() != type || rhs->get_type() != type) {
+      auto &&errmsg = IROperandError::make_error_str({lhs, rhs}, {type, type});
+      throw IROperandError(errmsg);
+    }
+    InstT *inst = nullptr;
+    if constexpr (OutType == OperandType::TYPE_INVALID) {
+      inst = m_graph->create_instruction<InstT>(opcode, lhs, rhs);
+    } else {
+      inst = m_graph->create_instruction<InstT>(opcode, OutType, lhs, rhs);
+    }
+    add_instruction(inst);
+    add_user_to(inst, {lhs, rhs});
+    return inst;
+  }
 
-  void add_instruction(Instruction *inst) { m_insert_bb->add_instruction(inst); }
+  void add_instruction(Instruction *inst) {
+    m_insert_bb->add_instruction(inst);
+  }
+
+  static void add_user_to(Instruction *user,
+                          std::vector<Instruction *> sources) {
+    std::for_each(sources.begin(), sources.end(),
+                  [user](Instruction *src) { src->add_user(user); });
+  }
 
 public:
   IRBuilder(ProgramGraph &graph) : m_graph(&graph) {}
@@ -49,31 +74,64 @@ public:
 
   BranchInstruction *create_branch(BasicBlock *target);
 
-  ConditionalBranchInstruction *create_conditional_branch(CmpFlag cmp_flag, BasicBlock *false_block,
-                                                          BasicBlock *true_block, Instruction *lhs,
-                                                          Instruction *rhs);
+  ConditionalBranchInstruction *
+  create_conditional_branch(CmpFlag cmp_flag, BasicBlock *false_block,
+                            BasicBlock *true_block, Instruction *lhs,
+                            Instruction *rhs);
 
   ArithmeticInstruction *create_iadd(Instruction *lhs, Instruction *rhs) {
-    return create_arithmetic_instruction(INST_ADD, OperandType::INTEGER, lhs, rhs);
+    return create_binary_op<ArithmeticInstruction, OperandType::INTEGER>(
+        INST_ADD, OperandType::INTEGER, lhs, rhs);
   }
 
   ArithmeticInstruction *create_isub(Instruction *lhs, Instruction *rhs) {
-    return create_arithmetic_instruction(INST_SUB, OperandType::INTEGER, lhs, rhs);
+    return create_binary_op<ArithmeticInstruction, OperandType::INTEGER>(
+        INST_SUB, OperandType::INTEGER, lhs, rhs);
   }
 
   ArithmeticInstruction *create_imul(Instruction *lhs, Instruction *rhs) {
-    return create_arithmetic_instruction(INST_MUL, OperandType::INTEGER, lhs, rhs);
+    return create_binary_op<ArithmeticInstruction, OperandType::INTEGER>(
+        INST_MUL, OperandType::INTEGER, lhs, rhs);
   }
 
   ArithmeticInstruction *create_idiv(Instruction *lhs, Instruction *rhs) {
-    return create_arithmetic_instruction(INST_DIV, OperandType::INTEGER, lhs, rhs);
+    return create_binary_op<ArithmeticInstruction, OperandType::INTEGER>(
+        INST_DIV, OperandType::INTEGER, lhs, rhs);
   }
 
   ArithmeticInstruction *create_mod(Instruction *lhs, Instruction *rhs) {
-    return create_arithmetic_instruction(INST_MOD, OperandType::INTEGER, lhs, rhs);
+    return create_binary_op<ArithmeticInstruction, OperandType::INTEGER>(
+        INST_MOD, OperandType::INTEGER, lhs, rhs);
   }
 
   PhiInstruction *create_phi(OperandType type);
+
+  BitShift *create_shl(Instruction *val, Instruction *shift) {
+    return create_binary_op<BitShift>(INST_SHL, OperandType::INTEGER, val,
+                                      shift);
+  }
+
+  BitShift *create_shr(Instruction *val, Instruction *shift) {
+    return create_binary_op<BitShift>(INST_SHR, OperandType::INTEGER, val,
+                                      shift);
+  }
+
+  BitOperation *create_and(Instruction *lhs, Instruction *rhs) {
+    return create_binary_op<BitOperation>(INST_AND, OperandType::INTEGER, lhs,
+                                          rhs);
+  }
+
+  BitOperation *create_or(Instruction *lhs, Instruction *rhs) {
+    return create_binary_op<BitOperation>(INST_OR, OperandType::INTEGER, lhs,
+                                          rhs);
+  }
+
+  BitOperation *create_xor(Instruction *lhs, Instruction *rhs) {
+    return create_binary_op<BitOperation>(INST_XOR, OperandType::INTEGER, lhs,
+                                          rhs);
+  }
+
+  BitNot *create_not(Instruction *val);
 };
 
 } // namespace koda

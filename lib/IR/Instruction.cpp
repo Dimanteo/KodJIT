@@ -39,16 +39,6 @@ void ConditionalBranchInstruction::dump_(std::ostream &os) const {
      << get_true_block()->get_id();
 }
 
-void ArithmeticInstruction::dump_(std::ostream &os) const {
-  os << operand_type_to_str(get_type()) << " ";
-  auto dump_arg = [](std::ostream &outs, Instruction *arg) {
-    outs << " " << operand_type_to_str(arg->get_type()) << " i"
-         << arg->get_id();
-  };
-  dump_arg(os, get_lhs());
-  dump_arg(os, get_rhs());
-}
-
 void PhiInstruction::dump_(std::ostream &os) const {
   os << operand_type_to_str(get_type());
   for (size_t i = 0; i < m_incoming_blocks.size(); ++i) {
