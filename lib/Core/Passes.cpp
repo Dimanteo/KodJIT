@@ -100,9 +100,7 @@ void ConstantFolding::run(Compiler &compiler) {
         continue;
       }
       auto result = fold(*inst);
-      auto folded_inst =
-          compiler.graph().create_instruction<LoadConstant<int64_t>>(INTEGER,
-                                                                      result);
+      auto folded_inst = builder.make_int_constant(result);
       inst = builder.replace(inst, folded_inst);
     }
   }
@@ -157,6 +155,58 @@ int64_t ConstantFolding::fold(const Instruction &act) {
   auto &&eval = m_evaluators[act.get_opcode()];
   auto folded = eval(act);
   return folded;
+}
+
+void Peephole::run(Compiler &compiler) {
+  auto &&rpo = compiler.get_or_create<RPOAnalysis>(compiler);
+  for (auto &&bbid : rpo) {
+    auto &&bb = *compiler.graph().get_bb(bbid);
+    if (bb.empty()) {
+      continue;
+    }
+    peephole_and(compiler, bb);
+  }
+}
+
+void Peephole::peephole_and(Compiler &comp, BasicBlock &bb) {
+  std::vector<std::pair<BitOperation *, Instruction *>> peepholes;
+  for (auto inst_it = bb.begin(); inst_it != bb.end(); ++inst_it) {
+    if (inst_it->get_opcode() != INST_AND) {
+      continue;
+    }
+    auto &&inst = *inst_it;
+    auto lhs = inst.get_input(BinaryOpInstructionBase::LHS);
+    auto rhs = inst.get_input(BinaryOpInstructionBase::RHS);
+    if (lhs->get_id() == rhs->get_id()) {
+      // x & x -> x
+      peepholes.push_back(
+          {reinterpret_cast<BitOperation *>(&inst), lhs});
+    }
+    if (lhs->get_opcode() != INST_CONST && rhs->get_opcode() != INST_CONST) {
+      continue;
+    }
+    auto &&[var_input, const_input] = std::make_pair(lhs, rhs);
+    if (const_input->get_opcode() != INST_CONST) {
+      std::swap(const_input, var_input);
+    }
+    auto const_inst = reinterpret_cast<LoadConstant<int64_t> *>(const_input);
+    auto val = const_inst->get_value();
+    if (val == 0) {
+      // x & 0 -> 0
+      peepholes.push_back({reinterpret_cast<BitOperation *>(&inst), const_inst});
+    } else if (static_cast<uint64_t>(val) == ~0ul) {
+      // x & 0xFFFF... -> x
+      peepholes.push_back(
+          {reinterpret_cast<BitOperation *>(&inst), var_input});
+    }
+  }
+  if (!peepholes.empty()) {
+    IRBuilder builder(comp.graph());
+    for (auto &&[inst, replacement] : peepholes) {
+      builder.move_users(inst, replacement);
+      builder.rm_instruction(inst);
+    }
+  }
 }
 
 } // namespace koda

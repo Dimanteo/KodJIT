@@ -31,6 +31,7 @@ void IRBuilder::move_users(Instruction *from, Instruction *to) {
                   to->add_user(use);
                   use->switch_input(from, to);
                 });
+  from->clear_users();
 }
 
 Instruction *IRBuilder::rm_instruction(Instruction *inst) {
@@ -66,10 +67,14 @@ LoadParam *IRBuilder::create_param_load(size_t param_idx) {
 }
 
 LoadConstant<int64_t> *IRBuilder::create_int_constant(int64_t value) {
-  auto inst = m_graph->create_instruction<LoadConstant<int64_t>>(
-      OperandType::INTEGER, value);
+  auto inst = make_int_constant(value);
   add_instruction(inst);
   return inst;
+}
+
+LoadConstant<int64_t> *IRBuilder::make_int_constant(int64_t value) {
+  return m_graph->create_instruction<LoadConstant<int64_t>>(
+      OperandType::INTEGER, value);
 }
 
 BranchInstruction *IRBuilder::create_branch(BasicBlock *target) {

@@ -362,6 +362,43 @@ TEST(CoreTest, cross_bb_fold) {
   ASSERT_EQ(dynamic_cast<LoadConstant<int64_t> *>(folded_ret)->get_value(), -2);
 }
 
+TEST(CoreTest, peephole_and) {
+  Compiler comp;
+  comp.register_pass<Peephole>();
+  auto &&graph = comp.graph();
+  graph.create_param(INTEGER);
+  IRBuilder builder(graph);
+  MKBB(0);
+  MKBB(1);
+  MKBB(2);
+  builder.set_entry_point(bb0);
+  builder.set_insert_point(bb0);
+  auto var = builder.create_param_load(0);
+  builder.create_and(var, var);
+  builder.set_insert_point(bb1);
+  builder.create_and(var, builder.create_int_constant(0));
+  builder.set_insert_point(bb2);
+  auto third = builder.create_and(var, builder.create_int_constant(~0ul));
+  auto ret_inst = builder.create_ret(third);
+  EDGE(0, 1);
+  EDGE(1, 2);
+  dump_graph(graph, "PeepAndTest0");
+  comp.run_all_passes();
+  dump_graph(graph, "PeepAndTest1");
+  ASSERT_EQ(bb0->size(), 2);
+  ASSERT_EQ(bb1->size(), 2);
+  ASSERT_EQ(bb2->size(), 2);
+  ASSERT_EQ(ret_inst->get_input(), var);
+  auto has_and = [](BasicBlock &bb) {
+    return std::any_of(bb.begin(), bb.end(), [](const Instruction &inst) {
+      return inst.get_opcode() == INST_AND;
+    });
+  };
+  ASSERT_FALSE(has_and(*bb0));
+  ASSERT_FALSE(has_and(*bb1));
+  ASSERT_FALSE(has_and(*bb2));
+}
+
 #undef MKBB
 #undef CONNECT
 

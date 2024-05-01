@@ -78,6 +78,9 @@ public:
 
   LoadConstant<int64_t> *create_int_constant(int64_t value);
 
+  // Same as create_ but doesn't add instruction to the basic block
+  LoadConstant<int64_t> *make_int_constant(int64_t value);
+
   BranchInstruction *create_branch(BasicBlock *target);
 
   ConditionalBranchInstruction *

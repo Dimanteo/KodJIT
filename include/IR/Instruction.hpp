@@ -69,6 +69,8 @@ public:
 
   void rm_user(size_t idx);
 
+  void clear_users() { m_users.clear(); }
+
   size_t get_num_users() const { return m_users.size(); }
 
   auto users_begin() { return m_users.begin(); }
