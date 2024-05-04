@@ -4,14 +4,25 @@
 #include <IR/BasicBlock.hpp>
 #include <IR/Instruction.hpp>
 
+#include <optional>
+
 namespace koda {
 
 class Compiler;
+class IRBuilder;
 
 // Base class for all passes
 struct PassI {
   virtual ~PassI() = default;
   virtual void run(Compiler &compiler) = 0;
+};
+
+// Not a DCE. Used to clean redundant instructions left after other passes.
+class RmUnused : public PassI {
+public:
+  virtual ~RmUnused() = default;
+
+  void run(Compiler &comp) override;
 };
 
 class ConstantFolding : public PassI {
@@ -38,7 +49,13 @@ public:
 };
 
 class Peephole : public PassI {
-  void peephole_and(Compiler &comp, BasicBlock &bb);
+  std::optional<Instruction *> peephole_and(IRBuilder &builder,
+                                            Instruction *inst);
+
+  std::optional<Instruction *> peephole_sub(IRBuilder &builder,
+                                            Instruction *inst);
+
+  static bool is_const_eq(Instruction *inst, int64_t value);
 
 public:
   virtual ~Peephole() = default;

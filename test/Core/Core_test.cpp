@@ -251,6 +251,7 @@ TEST(CoreTest, regalloc_test) {
 TEST(CoreTest, and_fold) {
   Compiler comp;
   comp.register_pass<ConstantFolding>();
+  comp.register_pass<RmUnused>();
   auto &&graph = comp.graph();
   IRBuilder builder(graph);
   MKBB(0);
@@ -273,6 +274,7 @@ TEST(CoreTest, and_fold) {
 TEST(CoreTest, sub_fold) {
   Compiler comp;
   comp.register_pass<ConstantFolding>();
+  comp.register_pass<RmUnused>();
   auto &&graph = comp.graph();
   IRBuilder builder(graph);
   MKBB(0);
@@ -295,6 +297,7 @@ TEST(CoreTest, sub_fold) {
 TEST(CoreTest, shr_fold) {
   Compiler comp;
   comp.register_pass<ConstantFolding>();
+  comp.register_pass<RmUnused>();
   auto &&graph = comp.graph();
   IRBuilder builder(graph);
   MKBB(0);
@@ -317,6 +320,7 @@ TEST(CoreTest, shr_fold) {
 TEST(CoreTest, cross_bb_fold) {
   Compiler comp;
   comp.register_pass<ConstantFolding>();
+  comp.register_pass<RmUnused>();
   auto &&graph = comp.graph();
   IRBuilder builder(graph);
   MKBB(0);
@@ -362,9 +366,16 @@ TEST(CoreTest, cross_bb_fold) {
   ASSERT_EQ(dynamic_cast<LoadConstant<int64_t> *>(folded_ret)->get_value(), -2);
 }
 
+auto has_inst(BasicBlock &bb, InstOpcode opc) {
+  return std::any_of(bb.begin(), bb.end(), [opc](const Instruction &inst) {
+    return inst.get_opcode() == opc;
+  });
+};
+
 TEST(CoreTest, peephole_and) {
   Compiler comp;
   comp.register_pass<Peephole>();
+  comp.register_pass<RmUnused>();
   auto &&graph = comp.graph();
   graph.create_param(INTEGER);
   IRBuilder builder(graph);
@@ -376,27 +387,43 @@ TEST(CoreTest, peephole_and) {
   auto var = builder.create_param_load(0);
   builder.create_and(var, var);
   builder.set_insert_point(bb1);
-  builder.create_and(var, builder.create_int_constant(0));
+  auto var_copy = builder.create_and(var, builder.create_int_constant(~0ul));
   builder.set_insert_point(bb2);
-  auto third = builder.create_and(var, builder.create_int_constant(~0ul));
-  auto ret_inst = builder.create_ret(third);
+  auto zero = builder.create_and(var_copy, builder.create_int_constant(0));
+  builder.create_iadd(var_copy, zero);
   EDGE(0, 1);
   EDGE(1, 2);
   dump_graph(graph, "PeepAndTest0");
   comp.run_all_passes();
   dump_graph(graph, "PeepAndTest1");
   ASSERT_EQ(bb0->size(), 2);
-  ASSERT_EQ(bb1->size(), 2);
+  ASSERT_EQ(bb1->size(), 1);
   ASSERT_EQ(bb2->size(), 2);
-  ASSERT_EQ(ret_inst->get_input(), var);
-  auto has_and = [](BasicBlock &bb) {
-    return std::any_of(bb.begin(), bb.end(), [](const Instruction &inst) {
-      return inst.get_opcode() == INST_AND;
-    });
-  };
-  ASSERT_FALSE(has_and(*bb0));
-  ASSERT_FALSE(has_and(*bb1));
-  ASSERT_FALSE(has_and(*bb2));
+  ASSERT_FALSE(has_inst(*bb0, INST_AND));
+  ASSERT_FALSE(has_inst(*bb1, INST_AND));
+  ASSERT_FALSE(has_inst(*bb2, INST_AND));
+}
+
+TEST(CoreTest, peephole_sub) {
+  Compiler comp;
+  comp.register_pass<Peephole>();
+  comp.register_pass<RmUnused>();
+  auto &&graph = comp.graph();
+  graph.create_param(INTEGER);
+  IRBuilder builder(graph);
+  MKBB(0);
+  builder.set_entry_point(bb0);
+  builder.set_insert_point(bb0);
+  auto var = builder.create_param_load(0);
+  auto var_zero = builder.create_isub(var, builder.create_int_constant(0));
+  auto res = builder.create_isub(var, var_zero);
+  auto ret_inst = builder.create_ret(res);
+  dump_graph(graph, "PeepSubTest0");
+  comp.run_all_passes();
+  dump_graph(graph, "PeepSubTest1");
+  ASSERT_EQ(bb0->size(), 2);
+  ASSERT_EQ(bb0->front().get_opcode(), INST_CONST);
+  ASSERT_EQ(&bb0->back(), ret_inst);
 }
 
 #undef MKBB

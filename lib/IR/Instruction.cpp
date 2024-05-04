@@ -16,12 +16,7 @@ void Instruction::rm_user(size_t idx) {
 }
 
 void Instruction::switch_input(Instruction *oldin, Instruction *newin) {
-  auto pos = std::find(m_inputs.begin(), m_inputs.end(), oldin);
-  if (pos == m_inputs.end()) {
-    return;
-  }
-  size_t idx = std::distance(m_inputs.begin(), pos);
-  m_inputs[idx] = newin;
+  std::replace(m_inputs.begin(), m_inputs.end(), oldin, newin);
 }
 
 void PhiInstruction::add_option(BasicBlock *incoming_bb, Instruction *value) {
