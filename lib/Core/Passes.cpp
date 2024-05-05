@@ -181,6 +181,11 @@ void Peephole::run(Compiler &compiler) {
         inst = BasicBlock::iterator(maybe_next.value());
         continue;
       }
+      maybe_next = peephole_shr(builder, &*inst);
+      if (maybe_next) {
+        inst = BasicBlock::iterator(maybe_next.value());
+        continue;
+      }
       // If no peephole applied go to next instruction
       ++inst;
     }
@@ -229,7 +234,7 @@ std::optional<Instruction *> Peephole::peephole_sub(IRBuilder &builder,
   auto sub = reinterpret_cast<ArithmeticInstruction *>(inst);
   if (sub->get_lhs()->get_id() == sub->get_rhs()->get_id()) {
     // sub a, a -> 0
-    auto zero =  builder.make_int_constant(0);
+    auto zero = builder.make_int_constant(0);
     auto next = builder.replace(sub, zero);
     return next;
   } else if (is_const_eq(sub->get_rhs(), 0)) {
@@ -241,12 +246,59 @@ std::optional<Instruction *> Peephole::peephole_sub(IRBuilder &builder,
   return std::nullopt;
 }
 
+std::optional<Instruction *> Peephole::peephole_shr(IRBuilder &builder,
+                                                    Instruction *inst) {
+  if (inst->get_opcode() != INST_SHR) {
+    return std::nullopt;
+  }
+  auto shift = dynamic_cast<BitShift *>(inst);
+  if (!is_const(shift->get_rhs())) {
+    return std::nullopt;
+  }
+  auto user_shift_it = std::find_if(
+      shift->users_begin(), shift->users_end(),
+      [inst](const Instruction *user) {
+        if (user->get_opcode() == INST_SHR) {
+          auto user_shift = dynamic_cast<const BitShift *>(user);
+          return user_shift->get_lhs()->get_id() == inst->get_id() &&
+                 is_const(user_shift->get_rhs());
+        }
+        return false;
+      });
+  if (user_shift_it == shift->users_end()) {
+    return std::nullopt;
+  }
+  // v1 = shr v0, x
+  // v2 = shr v1, y -> v2 = shr v0, (x+y)
+  auto user_shift = dynamic_cast<BitShift *>(*user_shift_it);
+  uint64_t first = get_const_value(shift->get_rhs());
+  uint64_t second = get_const_value(user_shift->get_rhs());
+  uint64_t result = (first + second) % (sizeof(uint64_t) * 8);
+  auto result_const = builder.make_int_constant(result);
+  auto result_shift = builder.make_shr(shift->get_lhs(), result_const);
+  builder.replace(user_shift, result_shift);
+  builder.insert_before(result_const, result_shift);
+  return inst;
+}
+
 bool Peephole::is_const_eq(Instruction *inst, int64_t value) {
   if (inst->get_opcode() != INST_CONST || inst->get_type() != INTEGER) {
     return false;
   }
-  auto inst_value = reinterpret_cast<LoadConstant<int64_t> *>(inst)->get_value();
+  auto inst_value =
+      reinterpret_cast<LoadConstant<int64_t> *>(inst)->get_value();
   return inst_value == value;
+}
+
+int64_t Peephole::get_const_value(Instruction *const_inst) {
+  assert(const_inst->get_opcode() == INST_CONST &&
+         const_inst->get_type() == INTEGER &&
+         "Only integer const value can be extracted in compile time");
+  return reinterpret_cast<LoadConstant<int64_t> *>(const_inst)->get_value();
+}
+
+bool Peephole::is_const(Instruction *inst) {
+  return inst->get_opcode() == INST_CONST;
 }
 
 } // namespace koda

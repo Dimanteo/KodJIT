@@ -55,7 +55,14 @@ class Peephole : public PassI {
   std::optional<Instruction *> peephole_sub(IRBuilder &builder,
                                             Instruction *inst);
 
+  std::optional<Instruction *> peephole_shr(IRBuilder &builder,
+                                            Instruction *inst);
+
   static bool is_const_eq(Instruction *inst, int64_t value);
+
+  static bool is_const(Instruction *inst);
+
+  static int64_t get_const_value(Instruction *const_inst);
 
 public:
   virtual ~Peephole() = default;

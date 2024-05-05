@@ -68,6 +68,10 @@ public:
 
   BasicBlock *get_insert_point() const { return m_insert_bb; }
 
+  void insert_after(Instruction *inst, Instruction *point);
+
+  void insert_before(Instruction *inst, Instruction *point);
+
   static void move_users(Instruction *from, Instruction *to);
 
   static Instruction *rm_instruction(Instruction *inst);
@@ -124,6 +128,8 @@ public:
     return create_binary_op<BitShift>(INST_SHR, OperandType::INTEGER, val,
                                       shift);
   }
+
+  BitShift *make_shr(Instruction *val, Instruction *shift);
 
   BitOperation *create_and(Instruction *lhs, Instruction *rhs) {
     return create_binary_op<BitOperation>(INST_AND, OperandType::INTEGER, lhs,

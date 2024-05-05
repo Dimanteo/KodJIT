@@ -426,6 +426,39 @@ TEST(CoreTest, peephole_sub) {
   ASSERT_EQ(&bb0->back(), ret_inst);
 }
 
+TEST(CoreTest, peephole_shr) {
+  Compiler comp;
+  comp.register_pass<Peephole>();
+  comp.register_pass<RmUnused>();
+  auto &&graph = comp.graph();
+  graph.create_param(INTEGER);
+  IRBuilder builder(graph);
+  MKBB(0);
+  builder.set_entry_point(bb0);
+  builder.set_insert_point(bb0);
+  auto var = builder.create_param_load(0);
+  int64_t first_const = 10;
+  int64_t second_const = 5;
+  auto first_shift =
+      builder.create_shr(var, builder.create_int_constant(first_const));
+  auto second_shift = builder.create_shr(
+      first_shift, builder.create_int_constant(second_const));
+  auto ret_inst = builder.create_ret(second_shift);
+  dump_graph(graph, "PeepShrTest0");
+  comp.run_all_passes();
+  dump_graph(graph, "PeepShrTest1");
+  auto ret_input = ret_inst->get_input();
+  ASSERT_EQ(ret_input->get_opcode(), INST_SHR);
+  ASSERT_EQ(ret_input->get_type(), INTEGER);
+  auto result_shr = dynamic_cast<BitShift *>(ret_input);
+  ASSERT_EQ(result_shr->get_lhs()->get_id(), var->get_id());
+  ASSERT_EQ(result_shr->get_rhs()->get_opcode(), INST_CONST);
+  ASSERT_EQ(result_shr->get_rhs()->get_type(), INTEGER);
+  auto result_const =
+      dynamic_cast<LoadConstant<int64_t> *>(result_shr->get_rhs())->get_value();
+  ASSERT_EQ(result_const, first_const + second_const);
+}
+
 #undef MKBB
 #undef CONNECT
 

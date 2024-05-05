@@ -25,6 +25,16 @@ IROperandError::make_error_str(std::initializer_list<IOperand *> received,
   return msg;
 }
 
+void IRBuilder::insert_after(Instruction *inst, Instruction *point) {
+  auto bb = point->get_bb();
+  bb->insert_inst_after(inst, point);
+}
+
+void IRBuilder::insert_before(Instruction *inst, Instruction *point) {
+  auto bb = point->get_bb();
+  bb->insert_inst_before(inst, point);
+}
+
 void IRBuilder::move_users(Instruction *from, Instruction *to) {
   std::for_each(from->users_begin(), from->users_end(),
                 [from, to](Instruction *use) {
@@ -123,6 +133,17 @@ PhiInstruction *IRBuilder::create_phi(OperandType type) {
   auto phi = m_graph->create_instruction<PhiInstruction>(type);
   add_instruction(phi);
   return phi;
+}
+
+BitShift *IRBuilder::make_shr(Instruction *lhs, Instruction *rhs) {
+  if (lhs->get_type() != INTEGER || rhs->get_type() != INTEGER) {
+    auto &&errmsg =
+        IROperandError::make_error_str({lhs, rhs}, {INTEGER, INTEGER});
+    throw IROperandError(errmsg);
+  }
+  BitShift *inst = m_graph->create_instruction<BitShift>(INST_SHR, lhs, rhs);
+  add_user_to(inst, {lhs, rhs});
+  return inst;
 }
 
 BitNot *IRBuilder::create_not(Instruction *val) {
