@@ -58,6 +58,11 @@ class Peephole : public PassI {
   std::optional<Instruction *> peephole_shr(IRBuilder &builder,
                                             Instruction *inst);
 
+  // Substitute division by power of 2 with shift right
+  // div v1, 2^n -> shr v1, n
+  std::optional<Instruction *> peephole_div(IRBuilder &builder,
+                                            Instruction *inst);
+
   static bool is_const_eq(Instruction *inst, int64_t value);
 
   static bool is_const(Instruction *inst);

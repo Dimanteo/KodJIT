@@ -186,6 +186,11 @@ void Peephole::run(Compiler &compiler) {
         inst = BasicBlock::iterator(maybe_next.value());
         continue;
       }
+      maybe_next = peephole_div(builder, &*inst);
+      if (maybe_next) {
+        inst = BasicBlock::iterator(maybe_next.value());
+        continue;
+      }
       // If no peephole applied go to next instruction
       ++inst;
     }
@@ -279,6 +284,36 @@ std::optional<Instruction *> Peephole::peephole_shr(IRBuilder &builder,
   builder.replace(user_shift, result_shift);
   builder.insert_before(result_const, result_shift);
   return inst;
+}
+
+std::optional<Instruction *> Peephole::peephole_div(IRBuilder &builder,
+                                                    Instruction *inst) {
+  if (inst->get_opcode() != INST_DIV) {
+    return std::nullopt;
+  }
+  auto div_inst = dynamic_cast<ArithmeticInstruction *>(inst);
+  if (div_inst->get_rhs()->get_opcode() != INST_CONST) {
+    return std::nullopt;
+  }
+  auto denominator = get_const_value(div_inst->get_rhs());
+  if (denominator < 0 || (denominator & 1)) {
+    return std::nullopt;
+  }
+  auto is_pow2 = [](uint64_t num) {
+    return num != 0 && (num ^ ((~num + 1) & num)) == 0;
+  };
+  if (!is_pow2(static_cast<uint64_t>(denominator))) {
+    return std::nullopt;
+  }
+  size_t power = 0;
+  while (denominator > 1) {
+    power++;
+    denominator = denominator >> 1;
+  }
+  auto shift_val = builder.make_int_constant(power);
+  builder.insert_before(shift_val, div_inst);
+  auto shr_inst = builder.make_shr(div_inst->get_lhs(), shift_val);
+  return builder.replace(div_inst, shr_inst);
 }
 
 bool Peephole::is_const_eq(Instruction *inst, int64_t value) {
